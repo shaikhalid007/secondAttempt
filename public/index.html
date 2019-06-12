@@ -1,0 +1,67 @@
+<html>
+
+<head>
+    <title>...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link href="main.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans:100,300,400,500" rel="stylesheet">
+</head>
+
+<body>
+  <!-- welcome screen -->
+  <div class = "wcs">
+    <h1>Sign Language Video Calling</h1>
+    <div class = "intro">
+      <p>using this web app deaf-dumb people can video call</p>
+      <p>we spent hundreds of hour to bring this to you</p>
+      <p>choose your mode</p>
+    </div>
+      <button id="dd-mode">Deaf/Dumb</button>
+      <button id = "normal-mode">-Normal-</button>
+  </div>
+
+  <!--training screen-->
+  <div class = "ts">
+
+    <div class="trainingStream">
+      <div id="train-stream" class="embed-responsive embed-responsive-16by9">
+      </div>
+    </div>
+
+    <div id="training-list">
+      <div id="example-list"></div>
+      <div id="add">
+        <form id="add-word" autocomplete="off">
+          <input type="text" id="new-word" placeholder="Add Training word">
+          <br/><br/>
+          <input type="submit" value="Add Word">
+        </form>
+      </div>
+      <p id="count">Training: 2 words</p>
+      <div id="action-btn"></div>
+    </div>
+
+
+  </div>
+
+
+  <!--video positioning-->
+  <div class="localStream">
+    <div class="d-flex justify-content-center">
+        <div class="embed-responsive embed-responsive-16by9">
+            <video class="embed-responsive-item" muted></video>
+        </div>
+    </div>
+  </div>
+
+  <div class="remoteStream">
+    <div id="peerDiv" class="embed-responsive embed-responsive-16by9">
+    </div>
+  </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="bundle.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,62 @@
+video {
+    transform: rotateY(180deg);
+}
+
+body {
+  font-family: "Google Sans", "sans-serif";
+  margin: 0;
+  padding: 0;
+  background: whitesmoke
+}
+
+
+
+p{
+  font-size: 25px
+}
+
+.wcs {
+  text-align: center;
+  position: absolute;
+  top: 30%; 
+  left: 30%;
+  right: 30%; 
+}
+
+
+
+.localStream {
+  position: absolute;
+  margin: auto;
+  top: 2%;
+  right: 0px;
+  width: 20%;
+  height: 15%;
+  pointer-events:none;
+}
+
+.remoteStream {
+  position: absolute;
+  margin:auto;
+  top: 2%;
+  left: 0px;
+  width: 70%;
+  height: 50%;
+  pointer-events:none;
+}
+
+.trainingStream {
+  position: absolute;
+  margin:auto;
+  top: 2%;
+  right: 0px;
+  width: 50%;
+  height: 50%;
+  pointer-events:none;
+}
+
+#training-list  {
+  margin: auto;
+  top: 2%;
+  left: 2%;
+}
