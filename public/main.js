@@ -17,9 +17,6 @@ import {KNNImageClassifier} from 'deeplearn-knn-image-classifier';
 import * as dl from 'deeplearn';
 
 
-// Webcam Image size. Must be 227.
-
-// K value for KNN
 const TOPK = 10;
 
 const predictionThreshold = 0.98
@@ -31,6 +28,7 @@ var words = ['hello', 'send', 'other']
 
 class Main  {
     constructor()   {
+        this.name = null
         this.wcs = document.getElementsByClassName("wcs");
         this.ddMode = document.getElementById("dd-mode");
         this.normalMode = document.getElementById("normal-mode")
@@ -110,6 +108,8 @@ class Main  {
             for (let i=0;i<this.wcs.length;i+=1){
                 this.wcs[i].style.display = 'none';
             }
+            let nameInput = document.getElementById("name")
+            name = nameInput.value
             this.trainingScreen()
         })
         this.normalMode.addEventListener("click", () => {
@@ -123,6 +123,15 @@ class Main  {
             video.setAttribute('class', 'embed-responsive-item')
             document.querySelector('#localDiv').appendChild(video)
             video.play()
+
+            let talk = document.getElementById("mpb-button")
+            talk.innerHTML = "click to start speaking"
+            talk.addEventListener("click", () => {
+              console.log("started speech recognition");
+              speechrecognition()
+            })
+            let nameInput = document.getElementById("name")
+            name = nameInput.value
             videoCall()
         })
     }
@@ -374,7 +383,7 @@ class Main  {
                   if(res.classIndex == i
                     && res.confidences[i] > predictionThreshold
                     && res.classIndex != this.previousPrediction){
-                    console.log(words[i]);
+                    socket.emit('chat', words[i])
                     // set previous prediction so it doesnt get called again
                     this.previousPrediction = res.classIndex;
     
@@ -480,16 +489,17 @@ function speechrecognition(){
         .map(result => result[0])
         .map(result => result.transcript)
         .join('');
-        socket.emit('chat', transcript)
+        socket.emit('chat',transcript)
     });
     recognition.addEventListener('end', recognition.start);
     recognition.start();
-
-    socket.on('chat', function(data){
-        console.log(data)
-        output.innerHTML = data;
-    });
 }
+
+socket.on('chat', function(data){
+  console.log(data)
+  let messageBox = document.getElementById("message")
+  messageBox.innerHTML = data
+});
 
 
 

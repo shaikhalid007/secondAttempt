@@ -17,6 +17,7 @@
       <p>we spent hundreds of hour to bring this to you</p>
       <p>choose your mode</p>
     </div>
+      <input id="name" type="text" name="enter your name">
       <button id="dd-mode">Deaf/Dumb</button>
       <button id = "normal-mode">-Normal-</button>
   </div>
@@ -58,9 +59,17 @@
   <div class="remoteStream">
     <div id="peerDiv" class="embed-responsive embed-responsive-16by9">
     </div>
-    <h3 id = "subs"></h3>
   </div>
 
+  <!--message container-->
+  <div class="meassageContainer">
+    <div class="mpb">
+      <button id="mpb-button"></button>
+    </div><!--multi purpose button-->
+    <span class="rightfloat">
+      <span id="message"></span>
+    </span>
+  </div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="bundle.js"></script>
 </body>
