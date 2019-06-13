@@ -30,8 +30,18 @@ p{
   margin: auto;
   top: 2%;
   right: 0px;
-  width: 20%;
-  height: 15%;
+  width: 277px;
+  height: 277px;
+  pointer-events:none;
+}
+
+.localStream-normal {
+  position: absolute;
+  margin: auto;
+  top: 2%;
+  right: 0px;
+  width: 277px;
+  height: 277px;
   pointer-events:none;
 }
 

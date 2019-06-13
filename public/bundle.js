@@ -28024,12 +28024,13 @@ var IMAGE_SIZE = 227;
 var Peer = require('simple-peer');
 var socket = io();
 var video = document.querySelector('video');
-video.width = IMAGE_SIZE;
-video.height = IMAGE_SIZE;
 var client = {};
 var gstream = null;
 navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(function (stream) {
     gstream = stream;
+    video.srcObject = stream;
+    video.width = IMAGE_SIZE;
+    video.height = IMAGE_SIZE;
 });
 
 // Webcam Image size. Must be 227.
@@ -28053,9 +28054,11 @@ var Main = function () {
         this.mode = null;
         this.trainingListDiv = document.getElementById("training-list");
 
+        this.predResults = document.getElementById("subs");
+
         this.infoTexts = [];
         this.training = -1; // -1 when no class is being trained
-        this.videoPlaying = true;
+        this.videoPlaying = false;
 
         this.previousPrediction = -1;
         this.currentPredictedWords = [];
@@ -28125,6 +28128,12 @@ var Main = function () {
                 for (var i = 0; i < _this2.wcs.length; i += 1) {
                     _this2.wcs[i].style.display = 'none';
                 }
+                var video = document.createElement('video');
+                video.id = 'localVideo';
+                video.srcObject = gstream;
+                video.setAttribute('class', 'embed-responsive-item');
+                document.querySelector('#localDiv').appendChild(video);
+                video.play();
                 videoCall();
             });
         }
@@ -28132,14 +28141,9 @@ var Main = function () {
         key: 'trainingScreen',
         value: function trainingScreen() {
             this.trainingListDiv.style.display = "block";
-            var video = document.createElement('video');
-            video.id = 'TrainingVideo';
-            video.srcObject = gstream;
-            video.width = IMAGE_SIZE;
-            video.height = IMAGE_SIZE;
-            video.setAttribute('class', 'embed-responsive-item');
-            document.querySelector('#train-stream').appendChild(video);
+            video.style.display = "block";
             video.play();
+            this.videoPlaying = true;
         }
     }, {
         key: 'createTrainingBtn',
@@ -28165,23 +28169,23 @@ var Main = function () {
                 _this3.createButtonList(true);
                 _this3.addWordForm.innerHTML = '';
                 _this3.loadKNN();
-
-                /*this.createPredictBtn()
+                _this3.createPredictBtn();
+                /*
                       this.textLine.innerText = "Step 2: Train"
                       let subtext = document.createElement('span')
                 subtext.innerHTML = "<br/>Time to associate signs with the words"
                 subtext.classList.add('subtext')
                 this.textLine.appendChild(subtext)
                 */
-                var callButton = document.createElement('button'); //start video calling
-                callButton.innerText = "Video Call";
-                _this3.trainingListDiv.appendChild(callButton);
-                callButton.addEventListener('click', function () {
-                    _this3.trainingListDiv.style.display = "none";
-                    var trainStreamDiv = document.getElementById('train-stream');
-                    trainStreamDiv.style.display = "none";
+                /*const callButton = document.createElement('button')//start video calling
+                callButton.innerText = "Video Call"
+                this.trainingListDiv.appendChild(callButton)
+                callButton.addEventListener('click', () => {
+                    this.trainingListDiv.style.display = "none"
+                    const trainStreamDiv = document.getElementById('train-stream')
+                    trainStreamDiv.style.display = "none"
                     videoCall();
-                });
+                })*/
             });
         }
     }, {
@@ -28276,7 +28280,7 @@ var Main = function () {
     }, {
         key: 'stopTraining',
         value: function stopTraining() {
-            video.pause();
+            //video.pause();
             cancelAnimationFrame(this.timer);
         }
     }, {
@@ -28310,17 +28314,110 @@ var Main = function () {
             }
             this.timer = requestAnimationFrame(this.train.bind(this));
         }
+    }, {
+        key: 'createPredictBtn',
+        value: function createPredictBtn() {
+            var _this6 = this;
+
+            var div = document.getElementById("action-btn");
+            div.innerHTML = "";
+            var predButton = document.createElement('button');
+            predButton.innerText = "Start VideoCalling >>>";
+            div.appendChild(predButton);
+
+            predButton.addEventListener('mousedown', function () {
+                _this6.trainingListDiv.style.display = "none";
+                videoCall();
+                console.log("start predicting");
+                var exampleCount = _this6.knn.getClassExampleCount();
+
+                // check if training has been done
+                if (Math.max.apply(Math, _toConsumableArray(exampleCount)) > 0) {
+
+                    // if wake word has not been trained
+                    if (exampleCount[0] == 0) {
+                        alert('You haven\'t added examples for the wake word HELLO');
+                        return;
+                    }
+
+                    // if the catchall phrase other hasnt been trained
+                    if (exampleCount[words.length - 1] == 0) {
+                        alert('You haven\'t added examples for the catchall sign OTHER.\n\nCapture yourself in idle states e.g hands by your side, empty background etc.\n\nThis prevents words from being erroneously detected.');
+                        return;
+                    }
+
+                    var proceed = confirm("Remember to sign the wake word hello both at the beginning and end of your query.\n\ne.g Alexa, what's the weather (Alexa)");
+
+                    if (!proceed) return;
+
+                    //this.textLine.classList.remove("intro-steps")
+                    //this.textLine.innerText = "Sign your query"
+                    _this6.startPredicting();
+                } else {
+                    alert('You haven\'t added any examples yet.\n\nPress and hold on the "Add Example" button next to each word while performing the sign in front of the webcam.');
+                }
+            });
+        }
+    }, {
+        key: 'startPredicting',
+        value: function startPredicting() {
+            // stop training
+            if (this.timer) {
+                this.stopTraining();
+            }
+
+            this.pred = requestAnimationFrame(this.predict.bind(this));
+        }
+    }, {
+        key: 'pausePredicting',
+        value: function pausePredicting() {
+            console.log("pause predicting");
+            cancelAnimationFrame(this.pred);
+        }
+    }, {
+        key: 'predict',
+        value: function predict() {
+            var _this7 = this;
+
+            this.now = Date.now();
+            this.elapsed = this.now - this.then;
+
+            if (this.elapsed > this.fpsInterval) {
+
+                this.then = this.now - this.elapsed % this.fpsInterval;
+
+                if (this.videoPlaying) {
+                    var exampleCount = this.knn.getClassExampleCount();
+
+                    var image = dl.fromPixels(video);
+                    if (Math.max.apply(Math, _toConsumableArray(exampleCount)) > 0) {
+                        this.knn.predictClass(image).then(function (res) {
+                            for (var i = 0; i < words.length; i++) {
+                                // if matches & is above threshold & isnt same as prev prediction
+                                // and is not the last class which is a catch all class
+                                if (res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != _this7.previousPrediction) {
+                                    console.log(words[i]);
+                                    // set previous prediction so it doesnt get called again
+                                    _this7.previousPrediction = res.classIndex;
+                                }
+                            }
+                        }).then(function () {
+                            return image.dispose();
+                        });
+                    } else {
+                        image.dispose();
+                    }
+                }
+            }
+            this.pred = requestAnimationFrame(this.predict.bind(this));
+        }
     }]);
 
     return Main;
 }();
 
 function videoCall() {
-    video.style.display = "block";
     socket.emit('NewClient');
-    video.srcObject = gstream;
-    video.play();
-
     //used to initialize a peer
     function InitPeer(type) {
         var peer = new Peer({ initiator: type == 'init' ? true : false, stream: gstream, trickle: false });
@@ -28369,6 +28466,7 @@ function videoCall() {
         video.setAttribute('class', 'embed-responsive-item');
         document.querySelector('#peerDiv').appendChild(video);
         video.play();
+        console.log("started session successfully");
     }
 
     function SessionActive() {

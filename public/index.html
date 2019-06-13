@@ -24,11 +24,6 @@
   <!--training screen-->
   <div class = "ts">
 
-    <div class="trainingStream">
-      <div id="train-stream" class="embed-responsive embed-responsive-16by9">
-      </div>
-    </div>
-
     <div id="training-list">
       <div id="example-list"></div>
       <div id="add">
@@ -55,9 +50,15 @@
     </div>
   </div>
 
+  <div class="localStream-normal">
+    <div id="localDiv" class="embed-responsive embed-responsive-16by9">
+    </div>
+  </div>
+
   <div class="remoteStream">
     <div id="peerDiv" class="embed-responsive embed-responsive-16by9">
     </div>
+    <h3 id = "subs"></h3>
   </div>
 
     <script src="/socket.io/socket.io.js"></script>

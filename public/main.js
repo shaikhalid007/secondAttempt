@@ -2,13 +2,14 @@ const IMAGE_SIZE = 227;
 var Peer = require('simple-peer');
 var socket = io();
 const video = document.querySelector('video');
-video.width = IMAGE_SIZE;
-video.height = IMAGE_SIZE;
 var client = {};
 var gstream = null
 navigator.mediaDevices.getUserMedia({ video: true, audio: false })
 .then(stream => {
-    gstream = stream
+    gstream = stream;
+    video.srcObject = stream;
+    video.width = IMAGE_SIZE;
+    video.height = IMAGE_SIZE;
 });
 
 
@@ -36,11 +37,11 @@ class Main  {
         this.mode = null
         this.trainingListDiv = document.getElementById("training-list")
 
-
+        this.predResults = document.getElementById("subs")
 
         this.infoTexts = [];
         this.training = -1; // -1 when no class is being trained
-        this.videoPlaying = true;
+        this.videoPlaying = false;
 
         this.previousPrediction = -1
         this.currentPredictedWords = []
@@ -106,30 +107,31 @@ class Main  {
         video.style.display = "none"
         this.ddMode.addEventListener("click", () => {
             console.log("mode: deaf-dumb")
-            for (var i=0;i<this.wcs.length;i+=1){
+            for (let i=0;i<this.wcs.length;i+=1){
                 this.wcs[i].style.display = 'none';
             }
             this.trainingScreen()
         })
         this.normalMode.addEventListener("click", () => {
             console.log("mode: normal")
-            for (var i=0;i<this.wcs.length;i+=1){
+            for (let i=0;i<this.wcs.length;i+=1){
                 this.wcs[i].style.display = 'none';
             }
+            let video = document.createElement('video')
+            video.id = 'localVideo'
+            video.srcObject = gstream
+            video.setAttribute('class', 'embed-responsive-item')
+            document.querySelector('#localDiv').appendChild(video)
+            video.play()
             videoCall()
         })
     }
 
     trainingScreen()   {
         this.trainingListDiv.style.display = "block"
-        let video = document.createElement('video')
-        video.id = 'TrainingVideo'
-        video.srcObject = gstream
-        video.width = IMAGE_SIZE;
-        video.height = IMAGE_SIZE;
-        video.setAttribute('class', 'embed-responsive-item')
-        document.querySelector('#train-stream').appendChild(video)
+        video.style.display = "block"
         video.play()
+        this.videoPlaying = true
     }
 
     createTrainingBtn(){
@@ -153,8 +155,8 @@ class Main  {
           this.createButtonList(true)
           this.addWordForm.innerHTML = ''
           this.loadKNN()
-    
-          /*this.createPredictBtn()
+          this.createPredictBtn()
+          /*
     
           this.textLine.innerText = "Step 2: Train"
     
@@ -163,7 +165,7 @@ class Main  {
           subtext.classList.add('subtext')
           this.textLine.appendChild(subtext)
           */
-            const callButton = document.createElement('button')//start video calling
+            /*const callButton = document.createElement('button')//start video calling
             callButton.innerText = "Video Call"
             this.trainingListDiv.appendChild(callButton)
             callButton.addEventListener('click', () => {
@@ -171,7 +173,7 @@ class Main  {
                 const trainStreamDiv = document.getElementById('train-stream')
                 trainStreamDiv.style.display = "none"
                 videoCall();
-            })
+            })*/
         })
     }
     
@@ -249,7 +251,7 @@ class Main  {
         }
     }
 
-      startTraining(){
+    startTraining(){
         if (this.timer) {
           this.stopTraining();
         }
@@ -257,7 +259,7 @@ class Main  {
     }
     
     stopTraining(){
-        video.pause();
+        //video.pause();
         cancelAnimationFrame(this.timer);
     }
 
@@ -290,16 +292,107 @@ class Main  {
         this.timer = requestAnimationFrame(this.train.bind(this));
     }
     
+    createPredictBtn(){
+        var div = document.getElementById("action-btn")
+        div.innerHTML = ""
+        const predButton = document.createElement('button')
+        predButton.innerText = "Start VideoCalling >>>"
+        div.appendChild(predButton);
+    
+        predButton.addEventListener('mousedown', () => {
+            this.trainingListDiv.style.display = "none"
+            videoCall();
+            console.log("start predicting")
+            const exampleCount = this.knn.getClassExampleCount()
+    
+          // check if training has been done
+          if(Math.max(...exampleCount) > 0){
+    
+            // if wake word has not been trained
+            if(exampleCount[0] == 0){
+              alert(
+                `You haven't added examples for the wake word HELLO`
+                )
+              return
+            }
+    
+            // if the catchall phrase other hasnt been trained
+            if(exampleCount[words.length-1] == 0){
+              alert(
+                `You haven't added examples for the catchall sign OTHER.\n\nCapture yourself in idle states e.g hands by your side, empty background etc.\n\nThis prevents words from being erroneously detected.`)
+              return
+            }
+    
+            let proceed = confirm("Remember to sign the wake word hello both at the beginning and end of your query.\n\ne.g Alexa, what's the weather (Alexa)")
+    
+            if(!proceed) return
+            
+            
+            //this.textLine.classList.remove("intro-steps")
+            //this.textLine.innerText = "Sign your query"
+            this.startPredicting()
+          } else {
+            alert(
+              `You haven't added any examples yet.\n\nPress and hold on the "Add Example" button next to each word while performing the sign in front of the webcam.`
+              )
+          }
+        })
+    }
       
+    startPredicting(){
+        // stop training
+        if(this.timer){
+          this.stopTraining();
+        }
+    
+        this.pred = requestAnimationFrame(this.predict.bind(this))
+    }
+
+    pausePredicting(){
+        console.log("pause predicting")
+        cancelAnimationFrame(this.pred)
+    }
+    
+    predict(){
+        this.now = Date.now()
+        this.elapsed = this.now - this.then
+    
+        if(this.elapsed > this.fpsInterval){
+    
+          this.then = this.now - (this.elapsed % this.fpsInterval)
+    
+          if(this.videoPlaying){
+            const exampleCount = this.knn.getClassExampleCount();
+            
+            const image = dl.fromPixels(video);
+            if(Math.max(...exampleCount) > 0){
+              this.knn.predictClass(image)
+              .then((res) => {
+                for(let i=0;i<words.length;i++){
+                  // if matches & is above threshold & isnt same as prev prediction
+                  // and is not the last class which is a catch all class
+                  if(res.classIndex == i
+                    && res.confidences[i] > predictionThreshold
+                    && res.classIndex != this.previousPrediction){
+                    console.log(words[i]);
+                    // set previous prediction so it doesnt get called again
+                    this.previousPrediction = res.classIndex;
+    
+                  }
+                }
+              })
+              .then(() => image.dispose())
+            } else {
+              image.dispose()
+            }
+          }
+        }
+        this.pred = requestAnimationFrame(this.predict.bind(this))
+      }
 }
 
 function videoCall()    {
-        video.style.display = "block"
         socket.emit('NewClient')
-        video.srcObject = gstream
-        video.play()
-
-
         //used to initialize a peer
       function InitPeer(type) {
           let peer = new Peer({ initiator: (type == 'init') ? true : false, stream: gstream, trickle: false })
@@ -348,7 +441,7 @@ function videoCall()    {
             video.setAttribute('class', 'embed-responsive-item')
             document.querySelector('#peerDiv').appendChild(video)
             video.play()
-
+            console.log("started session successfully")
         }
 
         function SessionActive() {
