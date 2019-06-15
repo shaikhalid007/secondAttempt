@@ -22,13 +22,13 @@ const TOPK = 10;
 const predictionThreshold = 0.98
 
 var words = ['hello', 'send', 'other']
-
+var name = null
 
 
 
 class Main  {
     constructor()   {
-        this.name = null
+        this.meassage = []
         this.wcs = document.getElementsByClassName("wcs");
         this.ddMode = document.getElementById("dd-mode");
         this.normalMode = document.getElementById("normal-mode")
@@ -110,6 +110,7 @@ class Main  {
             }
             let nameInput = document.getElementById("name")
             name = nameInput.value
+            name = name.toUpperCase() + ": " 
             this.trainingScreen()
         })
         this.normalMode.addEventListener("click", () => {
@@ -132,6 +133,7 @@ class Main  {
             })
             let nameInput = document.getElementById("name")
             name = nameInput.value
+            name = name.toUpperCase() + ": " 
             videoCall()
         })
     }
@@ -148,6 +150,7 @@ class Main  {
         div.innerHTML = ""
     
         const trainButton = document.createElement('button')
+        trainButton.id = "train-button"
         trainButton.innerText = "Training >>>"
         div.appendChild(trainButton);
     
@@ -164,7 +167,7 @@ class Main  {
           this.createButtonList(true)
           this.addWordForm.innerHTML = ''
           this.loadKNN()
-          this.createPredictBtn()
+          this.createVideoCallButton()
           /*
     
           this.textLine.innerText = "Step 2: Train"
@@ -300,17 +303,25 @@ class Main  {
         }
         this.timer = requestAnimationFrame(this.train.bind(this));
     }
+
+    createVideoCallButton(){
+      let div = document.getElementById("action-btn")
+      div.innerHTML = ""
+      const videoCallButton = document.createElement('button')
+      div.appendChild(videoCallButton)
+      videoCallButton.innerText = "Start VideoCalling >>>"
+      videoCallButton.addEventListener("click", () => {
+        this.trainingListDiv.style.display = "none"
+        videoCall();
+        this.createPredictBtn()
+      })
+    }
     
     createPredictBtn(){
-        var div = document.getElementById("action-btn")
-        div.innerHTML = ""
-        const predButton = document.createElement('button')
-        predButton.innerText = "Start VideoCalling >>>"
-        div.appendChild(predButton);
+        var predButton = document.getElementById("mpb-button")
+        predButton.innerHTML = "start predicting"
     
-        predButton.addEventListener('mousedown', () => {
-            this.trainingListDiv.style.display = "none"
-            videoCall();
+        predButton.addEventListener('click', () => {
             console.log("start predicting")
             const exampleCount = this.knn.getClassExampleCount()
     
@@ -376,19 +387,39 @@ class Main  {
             const image = dl.fromPixels(video);
             if(Math.max(...exampleCount) > 0){
               this.knn.predictClass(image)
-              .then((res) => {
+              .then((res) => /*{
                 for(let i=0;i<words.length;i++){
                   // if matches & is above threshold & isnt same as prev prediction
                   // and is not the last class which is a catch all class
-                  if(res.classIndex == i
-                    && res.confidences[i] > predictionThreshold
-                    && res.classIndex != this.previousPrediction){
-                    socket.emit('chat', words[i])
+                  if(res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != this.previousPrediction){
+                    console.log(res)
+                    if(words[i] == 'send')  {
+                      socket.emit('chat', name + this.meassage)
+                      this.message = []
+                    }
+                    if(words[i] != 'other') {
+                      this.message = this.meassage + ' ' + words[i];
+                    }
+                    
                     // set previous prediction so it doesnt get called again
                     this.previousPrediction = res.classIndex;
     
                   }
                 }
+              }*/
+              {
+                if(res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != this.previousPrediction && res.classIndex != words.length-1){
+                  if(words[res.classIndex] == 'send') {
+                    socket.emit('chat', name + this.message);
+                    this.meassage = [];
+                  }
+                  else  {
+                    this.message = this.message + ' ' + words[res.classIndex];
+                  }
+                  console.log(words[res.classIndex])
+                  this.previousPrediction = res.classIndex;
+                }
+              
               })
               .then(() => image.dispose())
             } else {
@@ -489,14 +520,13 @@ function speechrecognition(){
         .map(result => result[0])
         .map(result => result.transcript)
         .join('');
-        socket.emit('chat',transcript)
+        socket.emit('chat',name + transcript)
     });
     recognition.addEventListener('end', recognition.start);
     recognition.start();
 }
 
 socket.on('chat', function(data){
-  console.log(data)
   let messageBox = document.getElementById("message")
   messageBox.innerHTML = data
 });

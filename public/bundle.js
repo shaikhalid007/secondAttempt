@@ -28038,6 +28038,7 @@ var TOPK = 10;
 var predictionThreshold = 0.98;
 
 var words = ['hello', 'send', 'other'];
+var name = null;
 
 var Main = function () {
     function Main() {
@@ -28045,7 +28046,7 @@ var Main = function () {
 
         _classCallCheck(this, Main);
 
-        this.name = null;
+        this.meassage = [];
         this.wcs = document.getElementsByClassName("wcs");
         this.ddMode = document.getElementById("dd-mode");
         this.normalMode = document.getElementById("normal-mode");
@@ -28121,6 +28122,7 @@ var Main = function () {
                 }
                 var nameInput = document.getElementById("name");
                 name = nameInput.value;
+                name = name.toUpperCase() + ": ";
                 _this2.trainingScreen();
             });
             this.normalMode.addEventListener("click", function () {
@@ -28143,6 +28145,7 @@ var Main = function () {
                 });
                 var nameInput = document.getElementById("name");
                 name = nameInput.value;
+                name = name.toUpperCase() + ": ";
                 videoCall();
             });
         }
@@ -28163,6 +28166,7 @@ var Main = function () {
             div.innerHTML = "";
 
             var trainButton = document.createElement('button');
+            trainButton.id = "train-button";
             trainButton.innerText = "Training >>>";
             div.appendChild(trainButton);
 
@@ -28178,7 +28182,7 @@ var Main = function () {
                 _this3.createButtonList(true);
                 _this3.addWordForm.innerHTML = '';
                 _this3.loadKNN();
-                _this3.createPredictBtn();
+                _this3.createVideoCallButton();
                 /*
                       this.textLine.innerText = "Step 2: Train"
                       let subtext = document.createElement('span')
@@ -28324,21 +28328,32 @@ var Main = function () {
             this.timer = requestAnimationFrame(this.train.bind(this));
         }
     }, {
-        key: 'createPredictBtn',
-        value: function createPredictBtn() {
+        key: 'createVideoCallButton',
+        value: function createVideoCallButton() {
             var _this6 = this;
 
             var div = document.getElementById("action-btn");
             div.innerHTML = "";
-            var predButton = document.createElement('button');
-            predButton.innerText = "Start VideoCalling >>>";
-            div.appendChild(predButton);
-
-            predButton.addEventListener('mousedown', function () {
+            var videoCallButton = document.createElement('button');
+            div.appendChild(videoCallButton);
+            videoCallButton.innerText = "Start VideoCalling >>>";
+            videoCallButton.addEventListener("click", function () {
                 _this6.trainingListDiv.style.display = "none";
                 videoCall();
+                _this6.createPredictBtn();
+            });
+        }
+    }, {
+        key: 'createPredictBtn',
+        value: function createPredictBtn() {
+            var _this7 = this;
+
+            var predButton = document.getElementById("mpb-button");
+            predButton.innerHTML = "start predicting";
+
+            predButton.addEventListener('click', function () {
                 console.log("start predicting");
-                var exampleCount = _this6.knn.getClassExampleCount();
+                var exampleCount = _this7.knn.getClassExampleCount();
 
                 // check if training has been done
                 if (Math.max.apply(Math, _toConsumableArray(exampleCount)) > 0) {
@@ -28361,7 +28376,7 @@ var Main = function () {
 
                     //this.textLine.classList.remove("intro-steps")
                     //this.textLine.innerText = "Sign your query"
-                    _this6.startPredicting();
+                    _this7.startPredicting();
                 } else {
                     alert('You haven\'t added any examples yet.\n\nPress and hold on the "Add Example" button next to each word while performing the sign in front of the webcam.');
                 }
@@ -28386,7 +28401,7 @@ var Main = function () {
     }, {
         key: 'predict',
         value: function predict() {
-            var _this7 = this;
+            var _this8 = this;
 
             this.now = Date.now();
             this.elapsed = this.now - this.then;
@@ -28400,15 +28415,34 @@ var Main = function () {
 
                     var image = dl.fromPixels(video);
                     if (Math.max.apply(Math, _toConsumableArray(exampleCount)) > 0) {
-                        this.knn.predictClass(image).then(function (res) {
-                            for (var i = 0; i < words.length; i++) {
-                                // if matches & is above threshold & isnt same as prev prediction
-                                // and is not the last class which is a catch all class
-                                if (res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != _this7.previousPrediction) {
-                                    socket.emit('chat', words[i]);
-                                    // set previous prediction so it doesnt get called again
-                                    _this7.previousPrediction = res.classIndex;
+                        this.knn.predictClass(image).then(function (res) /*{
+                                                                         for(let i=0;i<words.length;i++){
+                                                                         // if matches & is above threshold & isnt same as prev prediction
+                                                                         // and is not the last class which is a catch all class
+                                                                         if(res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != this.previousPrediction){
+                                                                         console.log(res)
+                                                                         if(words[i] == 'send')  {
+                                                                         socket.emit('chat', name + this.meassage)
+                                                                         this.message = []
+                                                                         }
+                                                                         if(words[i] != 'other') {
+                                                                         this.message = this.meassage + ' ' + words[i];
+                                                                         }
+                                                                                      // set previous prediction so it doesnt get called again
+                                                                         this.previousPrediction = res.classIndex;
+                                                                         }
+                                                                         }
+                                                                         }*/
+                        {
+                            if (res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != _this8.previousPrediction && res.classIndex != words.length - 1) {
+                                if (words[res.classIndex] == 'send') {
+                                    socket.emit('chat', name + _this8.message);
+                                    _this8.meassage = [];
+                                } else {
+                                    _this8.message = _this8.message + ' ' + words[res.classIndex];
                                 }
+                                console.log(words[res.classIndex]);
+                                _this8.previousPrediction = res.classIndex;
                             }
                         }).then(function () {
                             return image.dispose();
@@ -28509,14 +28543,13 @@ function speechrecognition() {
         }).map(function (result) {
             return result.transcript;
         }).join('');
-        socket.emit('chat', transcript);
+        socket.emit('chat', name + transcript);
     });
     recognition.addEventListener('end', recognition.start);
     recognition.start();
 }
 
 socket.on('chat', function (data) {
-    console.log(data);
     var messageBox = document.getElementById("message");
     messageBox.innerHTML = data;
 });
