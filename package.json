@@ -23,11 +23,16 @@
       ]
     ]
   },
-  "author": "team crce",
+  "env": {
+    "es6": true
+  },
+  "author": "error(404)",
   "dependencies": {
+    "@tensorflow-models/mobilenet": "^1.0.1",
+    "@tensorflow/tfjs-node": "^1.2.1",
+    "browserify": "^16.2.3",
     "deeplearn": "~0.5.0",
     "deeplearn-knn-image-classifier": "^0.3.0",
-    "browserify": "^16.2.3",
     "express": "^4.17.1",
     "simple-peer": "^9.3.0",
     "socket.io": "^2.2.0"

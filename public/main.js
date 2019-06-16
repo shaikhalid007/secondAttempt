@@ -1,20 +1,52 @@
-const IMAGE_SIZE = 227;
+
+const video = document.querySelector('video')
+var knn;
+var featureExtractor
+
+async function setupCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error(
+        'Browser API navigator.mediaDevices.getUserMedia not available');
+  }
+  video.width = IMAGE_SIZE;
+  video.height = IMAGE_SIZE;
+  const stream = await navigator.mediaDevices.getUserMedia({
+    'audio': false,
+    'video': true
+  });
+  video.srcObject = stream;
+  gstream = stream;
+  return new Promise((resolve) => {
+    video.onloadedmetadata = () => {
+      resolve(video);
+    };
+  });
+}
+
+
+
+
+const IMAGE_SIZE = 224;
 var Peer = require('simple-peer');
 var socket = io();
-const video = document.querySelector('video');
 var client = {};
 var gstream = null
-navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+/*navigator.mediaDevices.getUserMedia({ video: true, audio: false })
 .then(stream => {
     gstream = stream;
     video.srcObject = stream;
     video.width = IMAGE_SIZE;
     video.height = IMAGE_SIZE;
-});
+});*/
 
 
-import {KNNImageClassifier} from 'deeplearn-knn-image-classifier';
-import * as dl from 'deeplearn';
+//import {KNNImageClassifier} from 'deeplearn-knn-image-classifier';
+//import * as dl from 'deeplearn';
+
+
+//import * as tf from '@tensorflow/tfjs';
+//import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
+
 
 
 const TOPK = 10;
@@ -43,20 +75,23 @@ class Main  {
 
         this.previousPrediction = -1
         this.currentPredictedWords = []
+        this.round = 0
+        
 
 
         // variables to restrict prediction rate
         this.now;
         this.then = Date.now()
         this.startTime = this.then;
-        this.fps = 5; //framerate - number of prediction per second
+        this.fps = 500 //framerate - number of prediction per second
         this.fpsInterval = 1000/(this.fps);
         this.elapsed = 0;
 
         this.trainingListDiv = document.getElementById("training-list")
         this.exampleListDiv = document.getElementById("example-list")
 
-        this.knn = null
+        //knn = null
+        //featureExtractor = null
         
 
         // Get video element that will contain the webcam image
@@ -118,11 +153,12 @@ class Main  {
             for (let i=0;i<this.wcs.length;i+=1){
                 this.wcs[i].style.display = 'none';
             }
-            let video = document.createElement('video')
+            /*let video = document.createElement('video')
             video.id = 'localVideo'
             video.srcObject = gstream
             video.setAttribute('class', 'embed-responsive-item')
-            document.querySelector('#localDiv').appendChild(video)
+            document.querySelector('#localDiv').appendChild(video)*/
+            video.style.display = "block"
             video.play()
 
             let talk = document.getElementById("mpb-button")
@@ -146,6 +182,7 @@ class Main  {
     }
 
     createTrainingBtn(){
+      this.nominee = new Array(words.length).fill(0)
         var div = document.getElementById("action-btn")
         div.innerHTML = ""
     
@@ -191,13 +228,13 @@ class Main  {
     
     loadKNN(){
 
-        this.knn = new KNNImageClassifier(words.length, TOPK);
-    
+        knn = ml5.KNNClassifier();
+        featureExtractor = ml5.featureExtractor("MobileNet", () => {
+          console.log("lodeded knn and mobilenet");
+            this.startTraining()
+        });
         // Load knn model
-        this.knn.load()
-        .then(() => this.startTraining());
     }
-
 
     createButtonList(showBtn){
         //showBtn - true: show training btns, false:show only text
@@ -251,7 +288,7 @@ class Main  {
     
           btn.addEventListener('mousedown', () => {
             console.log("clear training data for this label")
-            this.knn.clearClass(i)
+            knn.clearLabel(i)
             this.infoTexts[i].innerText = " 0 examples"
           })
     
@@ -283,23 +320,26 @@ class Main  {
     train(){
         if(this.videoPlaying){
           // Get image data from video element
-          const image = dl.fromPixels(video);
-    
+          //const image = tf.browser.fromPixels(video);
+          //console.log(image)
+          const logits = featureExtractor.infer(video, 'conv_preds');
+          //logits.print();
           // Train class if one of the buttons is held down
           if(this.training != -1){
             // Add current image to classifier
-            this.knn.addImage(image, this.training)
+            knn.addExample(logits, this.training)
           }
     
-          const exampleCount = this.knn.getClassExampleCount()
+          const exampleCount = knn.getCount()
+          //console.log(exampleCount);
     
-          if(Math.max(...exampleCount) > 0){
+          //if(Math.max(...exampleCount) > 0){
             for(let i=0;i<words.length;i++){
               if(exampleCount[i] > 0){
                 this.infoTexts[i].innerText = ` ${exampleCount[i]} examples`
               }
             }
-          }
+          //}
         }
         this.timer = requestAnimationFrame(this.train.bind(this));
     }
@@ -310,6 +350,19 @@ class Main  {
       const videoCallButton = document.createElement('button')
       div.appendChild(videoCallButton)
       videoCallButton.innerText = "Start VideoCalling >>>"
+
+      const loadBtn = document.createElement('button')
+      div.appendChild(loadBtn)
+      loadBtn.innerText = "load model"
+
+      loadBtn.addEventListener("click", () => {
+        this.trainingListDiv.style.display = "none"
+        knn.load("model1.json");
+        videoCall();
+        this.createPredictBtn()
+      })
+
+
       videoCallButton.addEventListener("click", () => {
         this.trainingListDiv.style.display = "none"
         videoCall();
@@ -318,16 +371,25 @@ class Main  {
     }
     
     createPredictBtn(){
+      let div = document.getElementById("action-btn")
+      div.innerHTML = ""
+      const saveBtn = document.createElement('button')
+      div.appendChild(saveBtn)
+      saveBtn.innerText = "save model"
+
+      saveBtn.addEventListener("click", () => {
+        knn.save("model1.json");
+      })
+
         var predButton = document.getElementById("mpb-button")
         predButton.innerHTML = "start predicting"
     
         predButton.addEventListener('click', () => {
             console.log("start predicting")
-            const exampleCount = this.knn.getClassExampleCount()
-    
+            const exampleCount = knn.getCount()
+            //console.log(exampleCount)
           // check if training has been done
-          if(Math.max(...exampleCount) > 0){
-    
+          //if(Math.max(...exampleCount) > 0){
             // if wake word has not been trained
             if(exampleCount[0] == 0){
               alert(
@@ -351,11 +413,11 @@ class Main  {
             //this.textLine.classList.remove("intro-steps")
             //this.textLine.innerText = "Sign your query"
             this.startPredicting()
-          } else {
+          /*} else {
             alert(
               `You haven't added any examples yet.\n\nPress and hold on the "Add Example" button next to each word while performing the sign in front of the webcam.`
               )
-          }
+          }*/
         })
     }
       
@@ -364,36 +426,74 @@ class Main  {
         if(this.timer){
           this.stopTraining();
         }
-    
-        this.pred = requestAnimationFrame(this.predict.bind(this))
+        //knn.load("model.json", () => {
+          this.pred = requestAnimationFrame(this.predict.bind(this))
+        //})
+        
     }
 
     pausePredicting(){
         console.log("pause predicting")
         cancelAnimationFrame(this.pred)
     }
+
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
     
-    predict(){
+
+    async predict (){
+      //await this.sleep(400);
         this.now = Date.now()
         this.elapsed = this.now - this.then
     
         if(this.elapsed > this.fpsInterval){
     
           this.then = this.now - (this.elapsed % this.fpsInterval)
-    
           if(this.videoPlaying){
-            const exampleCount = this.knn.getClassExampleCount();
-            
-            const image = dl.fromPixels(video);
-            if(Math.max(...exampleCount) > 0){
-              this.knn.predictClass(image)
-              .then((res) => /*{
+            const exampleCount = knn.getCount();
+            //const image = dl.fromPixels(video);
+            const logits = featureExtractor.infer(video)
+            //if(Math.max(...exampleCount) > 0){
+            knn.classify(logits, 10, (error, res) => {
+                if(error){
+                  console.log(error)
+                }
+                if(res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != this.previousPrediction ){
+                  if(this.round == 5 || res.classIndex == words.length-1) {
+                    if(this.round == 5) {
+                      console.log(this.nominee.indexOf(Math.max(...this.nominee)))
+                      this.previousPrediction = this.nominee.indexOf(Math.max(...this.nominee));
+                    }
+                    this.round = 0
+                    this.nominee = new Array(words.length).fill(0)
+                  }
+                  else  {
+                    this.round +=1
+                    this.nominee[res.classIndex]+=1
+                  }
+                  //console.log(words[res.classIndex])
+                  /*if(res == 'send') {
+                    socket.emit('chat', name + this.message);
+                    this.meassage = [];
+                  }
+                  else  {   
+                    this.message = this.message + ' ' + words[res.classIndex];
+                  }*/
+                  
+                }
+            }).then(logits.dispose())
+            /*} else {
+              image.dispose()
+            }*/
+              /*.then((res) => *//*{
                 for(let i=0;i<words.length;i++){
                   // if matches & is above threshold & isnt same as prev prediction
                   // and is not the last class which is a catch all class
                   if(res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != this.previousPrediction){
-                    console.log(res)
+                    console.log(words[i])
                     if(words[i] == 'send')  {
+                      
                       socket.emit('chat', name + this.meassage)
                       this.message = []
                     }
@@ -406,32 +506,18 @@ class Main  {
     
                   }
                 }
-              }*/
-              {
-                if(res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != this.previousPrediction && res.classIndex != words.length-1){
-                  if(words[res.classIndex] == 'send') {
-                    socket.emit('chat', name + this.message);
-                    this.meassage = [];
-                  }
-                  else  {
-                    this.message = this.message + ' ' + words[res.classIndex];
-                  }
-                  console.log(words[res.classIndex])
-                  this.previousPrediction = res.classIndex;
-                }
+              }).then(() => logits.dispose())*/
               
-              })
-              .then(() => image.dispose())
-            } else {
-              image.dispose()
-            }
           }
         }
         this.pred = requestAnimationFrame(this.predict.bind(this))
       }
+
 }
 
-function videoCall()    {
+
+
+async function videoCall()    {
         socket.emit('NewClient')
         //used to initialize a peer
       function InitPeer(type) {
@@ -536,5 +622,6 @@ socket.on('chat', function(data){
 var main = null
 window.addEventListener('load', () => {
     main = new Main()
+    setupCamera()
     main.welcomeScreen()
 })
