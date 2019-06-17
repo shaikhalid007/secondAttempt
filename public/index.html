@@ -44,9 +44,9 @@
 
   <!--video positioning-->
   <div class="localStream">
-    <div>
-        <div>
-            <video></video>
+    <div class="d-flex justify-content-center">
+        <div class="embed-responsive embed-responsive-16by9">
+            <video class="embed-responsive-item" muted></video>
         </div>
     </div>
   </div>
@@ -63,7 +63,6 @@
 
   <!--message container-->
   <div class="messageContainer">
-      <div class="words" contenteditable></div>
       <span id="message"></span>
   </div>
 
@@ -73,8 +72,7 @@
     <button id="mpb-button"></button>
   </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
-    <script src="https://unpkg.com/ml5@0.3.1/dist/ml5.min.js"></script>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="bundle.js"></script>
 </body>
