@@ -28,7 +28,7 @@
   },
   "author": "error(404)",
   "dependencies": {
-    "@tensorflow-models/mobilenet": "^1.0.1",
+    "@tensorflow-models/knn-classifier": "^1.1.0",
     "@tensorflow/tfjs-node": "^1.2.1",
     "browserify": "^16.2.3",
     "deeplearn": "~0.5.0",

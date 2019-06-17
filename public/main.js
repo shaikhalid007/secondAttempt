@@ -8,8 +8,8 @@ async function setupCamera() {
     throw new Error(
         'Browser API navigator.mediaDevices.getUserMedia not available');
   }
-  video.width = IMAGE_SIZE;
-  video.height = IMAGE_SIZE;
+  video.width = IMAGE_SIZE
+  video.height = IMAGE_SIZE
   const stream = await navigator.mediaDevices.getUserMedia({
     'audio': false,
     'video': true
@@ -44,14 +44,14 @@ var gstream = null
 //import * as dl from 'deeplearn';
 
 
-//import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs';
 //import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
-
+import * as knnClassifier from '@tensorflow-models/knn-classifier';
 
 
 const TOPK = 10;
 
-const predictionThreshold = 0.98
+const predictionThreshold = 0.99999999
 
 var words = ['hello', 'send', 'other']
 var name = null
@@ -83,7 +83,7 @@ class Main  {
         this.now;
         this.then = Date.now()
         this.startTime = this.then;
-        this.fps = 500 //framerate - number of prediction per second
+        this.fps = 25 //framerate - number of prediction per second
         this.fpsInterval = 1000/(this.fps);
         this.elapsed = 0;
 
@@ -226,10 +226,10 @@ class Main  {
         })
     }
     
-    loadKNN(){
+    async loadKNN(){
 
-        knn = ml5.KNNClassifier();
-        featureExtractor = ml5.featureExtractor("MobileNet", () => {
+        knn = knnClassifier.create()
+        featureExtractor =  await ml5.featureExtractor("MobileNet", () => {
           console.log("lodeded knn and mobilenet");
             this.startTraining()
         });
@@ -320,17 +320,17 @@ class Main  {
     train(){
         if(this.videoPlaying){
           // Get image data from video element
-          //const image = tf.browser.fromPixels(video);
+          const image = tf.browser.fromPixels(video);
           //console.log(image)
-          const logits = featureExtractor.infer(video, 'conv_preds');
+          const logits = featureExtractor.infer(video);
           //logits.print();
           // Train class if one of the buttons is held down
           if(this.training != -1){
             // Add current image to classifier
-            knn.addExample(logits, this.training)
-          }
+            knn.addExample(logits, this.training);
+          } 
     
-          const exampleCount = knn.getCount()
+          const exampleCount = knn.getClassExampleCount()
           //console.log(exampleCount);
     
           //if(Math.max(...exampleCount) > 0){
@@ -443,13 +443,11 @@ class Main  {
     
 
     async predict (){
-      //await this.sleep(400);
         this.now = Date.now()
         this.elapsed = this.now - this.then
     
         if(this.elapsed > this.fpsInterval){
-    
-          this.then = this.now - (this.elapsed % this.fpsInterval)
+          this.then = this.now - (this.elapsed % this.fpsInterval);
           if(this.videoPlaying){
             const exampleCount = knn.getCount();
             //const image = dl.fromPixels(video);
@@ -459,11 +457,13 @@ class Main  {
                 if(error){
                   console.log(error)
                 }
-                if(res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != this.previousPrediction ){
-                  if(this.round == 5 || res.classIndex == words.length-1) {
-                    if(this.round == 5) {
-                      console.log(this.nominee.indexOf(Math.max(...this.nominee)))
-                      this.previousPrediction = this.nominee.indexOf(Math.max(...this.nominee));
+                if(res.confidences[res.classIndex] > predictionThreshold && res.classIndex != this.previousPrediction ){
+                  console.log(res.classIndex)
+                  if(this.round === 8 || res.classIndex == words.length-1) {
+                    if(this.round === 8) {
+                      let finalRes = this.nominee.indexOf(Math.max(...this.nominee))
+                      console.log(words[finalRes])
+                      this.previousPrediction = finalRes
                     }
                     this.round = 0
                     this.nominee = new Array(words.length).fill(0)
