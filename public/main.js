@@ -1,16 +1,41 @@
 
-const video = document.querySelector('video')
+const video = document.querySelector('video');
 var knn;
 var featureExtractor
+var predLenght;
 
-async function setupCamera() {
+var canvas1 = document.getElementById('canvas1')
+var context = canvas1.getContext('2d');
+var canvas2 = document.getElementById('canvas2')
+var context2 = canvas2.getContext('2d');
+
+var model;
+const modelParams = {
+    flipHorizontal: true,   // flip e.g for video 
+    imageScaleFactor: 1.0,  // reduce input image size for gains in speed.
+    maxNumBoxes: 20,        // maximum number of boxes to detect
+    iouThreshold: 0.5,      // ioU threshold for non-max suppression
+    scoreThreshold: 0.79,    // confidence threshold for predictions.
+}
+
+handTrack.load(modelParams).then(lmodel => {
+    console.log("loading model")
+    model = lmodel;
+})
+
+
+navigator.getUserMedia = navigator.getUserMedia ||
+navigator.webkitGetUserMedia ||
+navigator.mozGetUserMedia;
+
+handTrack.startVideo(video).then( status => {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     throw new Error(
         'Browser API navigator.mediaDevices.getUserMedia not available');
   }
-  video.width = IMAGE_SIZE;
-  video.height = IMAGE_SIZE;
-  const stream = await navigator.mediaDevices.getUserMedia({
+  video.width = IMAGE_SIZE
+  video.height = IMAGE_SIZE
+  const stream = navigator.mediaDevices.getUserMedia({
     'audio': false,
     'video': true
   });
@@ -19,10 +44,29 @@ async function setupCamera() {
   return new Promise((resolve) => {
     video.onloadedmetadata = () => {
       resolve(video);
+      video.play()
     };
   });
+});
+
+
+function runDectection()    {
+  let arr;
+  model.detect(video).then(predictions => {
+      model.renderPredictions(predictions, canvas1, context, video)
+      predLenght = predictions.length;
+      if(predictions.length >0)   {
+          for(let i=0; i< predictions.length; i++)    { 
+              arr = predictions[i].bbox;
+              context2.drawImage(canvas1, arr[0]-10, arr[1]-10, arr[2]+10, arr[3]+10,arr[0]-10, arr[1]-10, arr[2]+10, arr[3]+10);
+          }
+      }
+  })
 }
 
+function clearCanvas()  {
+  context2.clearRect(0, 0, 224, 224)
+}
 
 
 
@@ -44,14 +88,13 @@ var gstream = null
 //import * as dl from 'deeplearn';
 
 
-//import * as tf from '@tensorflow/tfjs';
-//import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
 
+//import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
 
 
 const TOPK = 10;
 
-const predictionThreshold = 0.98
+const predictionThreshold = 0.85
 
 var words = ['hello', 'send', 'other']
 var name = null
@@ -83,7 +126,7 @@ class Main  {
         this.now;
         this.then = Date.now()
         this.startTime = this.then;
-        this.fps = 500 //framerate - number of prediction per second
+        this.fps = 1 //framerate - number of prediction per second
         this.fpsInterval = 1000/(this.fps);
         this.elapsed = 0;
 
@@ -159,7 +202,6 @@ class Main  {
             video.setAttribute('class', 'embed-responsive-item')
             document.querySelector('#localDiv').appendChild(video)*/
             video.style.display = "block"
-            video.play()
 
             let talk = document.getElementById("mpb-button")
             talk.innerHTML = "click to start speaking"
@@ -226,13 +268,14 @@ class Main  {
         })
     }
     
-    loadKNN(){
+    async loadKNN(){
 
-        knn = ml5.KNNClassifier();
-        featureExtractor = ml5.featureExtractor("MobileNet", () => {
+        knn = knnClassifier.create()
+        featureExtractor = await mobilenet.load();
+        /*featureExtractor =  await ml5.featureExtractor("MobileNet", () => {
           console.log("lodeded knn and mobilenet");
             this.startTraining()
-        });
+        });*/
         // Load knn model
     }
 
@@ -257,9 +300,9 @@ class Main  {
         const wordText = document.createElement('span')
     
         if(i==0 && !showBtn){
-          wordText.innerText = words[i].toUpperCase()+" (wake/stop word) "
+          wordText.innerText = words[i].toUpperCase()
         } else if(i==words.length-1 && !showBtn){
-          wordText.innerText = words[i].toUpperCase()+" (catchall sign) "
+          wordText.innerText = words[i].toUpperCase()
         } else {
           wordText.innerText = words[i].toUpperCase()+" "
           wordText.style.fontWeight = "bold"
@@ -275,11 +318,36 @@ class Main  {
           div.appendChild(button);
     
           // Listen for mouse events when clicking the button
-          button.addEventListener('mousedown', () => {
+          button.addEventListener('click', async () => {
+          for(let j=0; j<30; j++) { 
+            await this.sleep(1000)
+              clearCanvas();
+              runDectection();
               this.training = i;
-              console.log(i);
+              // Get image data from video element
+          const image = tf.browser.fromPixels(canvas2);
+          //console.log(image.dataSync())
+          const logits = featureExtractor.infer(image);
+          //logits.print();
+          // Train class if one of the buttons is held down
+          if(predLenght>0)  {
+            knn.addExample(logits, this.training);
+          }
+            // Add current image to classifier
+            
+      
+    
+          const exampleCount = knn.getClassExampleCount()
+          //console.log(exampleCount);
+    
+          //if(Math.max(...exampleCount) > 0){
+              if(exampleCount[i] > 0){
+                this.infoTexts[i].innerText = ` ${exampleCount[i]} examples`
+              }
+            
+          //}
+          }
           });
-          button.addEventListener('mouseup', () => this.training = -1);
     
           // Create clear button to emove training examples
           const btn = document.createElement('button')
@@ -300,49 +368,16 @@ class Main  {
         }
     }
 
-    startTraining(){
-        if (this.timer) {
-          this.stopTraining();
-        }
-        this.timer = requestAnimationFrame(this.train.bind(this));
-    }
     
-    stopTraining(){
-        //video.pause();
-        cancelAnimationFrame(this.timer);
-    }
+    
+   
 
     updateExampleCount(){
         var p = document.getElementById('count')
         p.innerText = `Training: ${words.length} words`
     }
 
-    train(){
-        if(this.videoPlaying){
-          // Get image data from video element
-          //const image = tf.browser.fromPixels(video);
-          //console.log(image)
-          const logits = featureExtractor.infer(video, 'conv_preds');
-          //logits.print();
-          // Train class if one of the buttons is held down
-          if(this.training != -1){
-            // Add current image to classifier
-            knn.addExample(logits, this.training)
-          }
-    
-          const exampleCount = knn.getCount()
-          //console.log(exampleCount);
-    
-          //if(Math.max(...exampleCount) > 0){
-            for(let i=0;i<words.length;i++){
-              if(exampleCount[i] > 0){
-                this.infoTexts[i].innerText = ` ${exampleCount[i]} examples`
-              }
-            }
-          //}
-        }
-        this.timer = requestAnimationFrame(this.train.bind(this));
-    }
+
 
     createVideoCallButton(){
       let div = document.getElementById("action-btn")
@@ -386,7 +421,7 @@ class Main  {
     
         predButton.addEventListener('click', () => {
             console.log("start predicting")
-            const exampleCount = knn.getCount()
+            const exampleCount = knn.getClassExampleCount()
             //console.log(exampleCount)
           // check if training has been done
           //if(Math.max(...exampleCount) > 0){
@@ -423,9 +458,6 @@ class Main  {
       
     startPredicting(){
         // stop training
-        if(this.timer){
-          this.stopTraining();
-        }
         //knn.load("model.json", () => {
           this.pred = requestAnimationFrame(this.predict.bind(this))
         //})
@@ -443,35 +475,26 @@ class Main  {
     
 
     async predict (){
-      //await this.sleep(400);
+        clearCanvas();
         this.now = Date.now()
         this.elapsed = this.now - this.then
     
         if(this.elapsed > this.fpsInterval){
-    
-          this.then = this.now - (this.elapsed % this.fpsInterval)
+          this.then = this.now - (this.elapsed % this.fpsInterval);
           if(this.videoPlaying){
-            const exampleCount = knn.getCount();
-            //const image = dl.fromPixels(video);
-            const logits = featureExtractor.infer(video)
+            const exampleCount = knn.getClassExampleCount();
+            runDectection()
+            const image = tf.browser.fromPixels(canvas2);
+            const logits = featureExtractor.infer(image)
             //if(Math.max(...exampleCount) > 0){
-            knn.classify(logits, 10, (error, res) => {
-                if(error){
-                  console.log(error)
-                }
-                if(res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != this.previousPrediction ){
-                  if(this.round == 5 || res.classIndex == words.length-1) {
-                    if(this.round == 5) {
-                      console.log(this.nominee.indexOf(Math.max(...this.nominee)))
-                      this.previousPrediction = this.nominee.indexOf(Math.max(...this.nominee));
-                    }
-                    this.round = 0
-                    this.nominee = new Array(words.length).fill(0)
-                  }
-                  else  {
-                    this.round +=1
-                    this.nominee[res.classIndex]+=1
-                  }
+            if(predLenght>0)  {
+              knn.predictClass(logits, 10).then((res) => {
+                if(res.confidences[res.classIndex] > predictionThreshold &&
+                  res.classIndex != this.previousPrediction &&
+                  res.classIndex != words.length-1){
+                  console.log(words[res.classIndex]);
+                  this.previousPrediction = res.classIndex;
+                  
                   //console.log(words[res.classIndex])
                   /*if(res == 'send') {
                     socket.emit('chat', name + this.message);
@@ -482,7 +505,9 @@ class Main  {
                   }*/
                   
                 }
-            }).then(logits.dispose())
+              }).then(logits.dispose(),image.dispose())
+            }
+            
             /*} else {
               image.dispose()
             }*/
@@ -622,6 +647,5 @@ socket.on('chat', function(data){
 var main = null
 window.addEventListener('load', () => {
     main = new Main()
-    setupCamera()
     main.welcomeScreen()
 })

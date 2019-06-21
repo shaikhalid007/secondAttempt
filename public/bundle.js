@@ -7530,53 +7530,70 @@ function config (name) {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var video = document.querySelector('video');
 var knn;
 var featureExtractor;
+var predLenght;
 
-function setupCamera() {
-    var stream;
-    return regeneratorRuntime.async(function setupCamera$(_context) {
-        while (1) {
-            switch (_context.prev = _context.next) {
-                case 0:
-                    if (!(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
-                        _context.next = 2;
-                        break;
-                    }
+var canvas1 = document.getElementById('canvas1');
+var context = canvas1.getContext('2d');
+var canvas2 = document.getElementById('canvas2');
+var context2 = canvas2.getContext('2d');
 
-                    throw new Error('Browser API navigator.mediaDevices.getUserMedia not available');
+var model;
+var modelParams = {
+    flipHorizontal: true, // flip e.g for video 
+    imageScaleFactor: 1.0, // reduce input image size for gains in speed.
+    maxNumBoxes: 20, // maximum number of boxes to detect
+    iouThreshold: 0.5, // ioU threshold for non-max suppression
+    scoreThreshold: 0.79 // confidence threshold for predictions.
+};
 
-                case 2:
-                    video.width = IMAGE_SIZE;
-                    video.height = IMAGE_SIZE;
-                    _context.next = 6;
-                    return regeneratorRuntime.awrap(navigator.mediaDevices.getUserMedia({
-                        'audio': false,
-                        'video': true
-                    }));
+handTrack.load(modelParams).then(function (lmodel) {
+    console.log("loading model");
+    model = lmodel;
+});
 
-                case 6:
-                    stream = _context.sent;
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
-                    video.srcObject = stream;
-                    gstream = stream;
-                    return _context.abrupt('return', new Promise(function (resolve) {
-                        video.onloadedmetadata = function () {
-                            resolve(video);
-                        };
-                    }));
+handTrack.startVideo(video).then(function (status) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Browser API navigator.mediaDevices.getUserMedia not available');
+    }
+    video.width = IMAGE_SIZE;
+    video.height = IMAGE_SIZE;
+    var stream = navigator.mediaDevices.getUserMedia({
+        'audio': false,
+        'video': true
+    });
+    video.srcObject = stream;
+    gstream = stream;
+    return new Promise(function (resolve) {
+        video.onloadedmetadata = function () {
+            resolve(video);
+            video.play();
+        };
+    });
+});
 
-                case 10:
-                case 'end':
-                    return _context.stop();
+function runDectection() {
+    var arr = void 0;
+    model.detect(video).then(function (predictions) {
+        model.renderPredictions(predictions, canvas1, context, video);
+        predLenght = predictions.length;
+        if (predictions.length > 0) {
+            for (var i = 0; i < predictions.length; i++) {
+                arr = predictions[i].bbox;
+                context2.drawImage(canvas1, arr[0] - 10, arr[1] - 10, arr[2] + 10, arr[3] + 10, arr[0] - 10, arr[1] - 10, arr[2] + 10, arr[3] + 10);
             }
         }
-    }, null, this);
+    });
+}
+
+function clearCanvas() {
+    context2.clearRect(0, 0, 224, 224);
 }
 
 var IMAGE_SIZE = 224;
@@ -7596,13 +7613,12 @@ var gstream = null;
 //import * as dl from 'deeplearn';
 
 
-//import * as tf from '@tensorflow/tfjs';
 //import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
 
 
 var TOPK = 10;
 
-var predictionThreshold = 0.98;
+var predictionThreshold = 0.85;
 
 var words = ['hello', 'send', 'other'];
 var name = null;
@@ -7634,7 +7650,7 @@ var Main = function () {
         this.now;
         this.then = Date.now();
         this.startTime = this.then;
-        this.fps = 500; //framerate - number of prediction per second
+        this.fps = 1; //framerate - number of prediction per second
         this.fpsInterval = 1000 / this.fps;
         this.elapsed = 0;
 
@@ -7706,7 +7722,6 @@ var Main = function () {
                 video.setAttribute('class', 'embed-responsive-item')
                 document.querySelector('#localDiv').appendChild(video)*/
                 video.style.display = "block";
-                video.play();
 
                 var talk = document.getElementById("mpb-button");
                 talk.innerHTML = "click to start speaking";
@@ -7776,14 +7791,24 @@ var Main = function () {
     }, {
         key: 'loadKNN',
         value: function loadKNN() {
-            var _this4 = this;
+            return regeneratorRuntime.async(function loadKNN$(_context) {
+                while (1) {
+                    switch (_context.prev = _context.next) {
+                        case 0:
 
-            knn = ml5.KNNClassifier();
-            featureExtractor = ml5.featureExtractor("MobileNet", function () {
-                console.log("lodeded knn and mobilenet");
-                _this4.startTraining();
-            });
-            // Load knn model
+                            knn = knnClassifier.create();
+                            _context.next = 3;
+                            return regeneratorRuntime.awrap(mobilenet.load());
+
+                        case 3:
+                            featureExtractor = _context.sent;
+
+                        case 4:
+                        case 'end':
+                            return _context.stop();
+                    }
+                }
+            }, null, this);
         }
     }, {
         key: 'createButtonList',
@@ -7801,7 +7826,7 @@ var Main = function () {
     }, {
         key: 'createButton',
         value: function createButton(i, showBtn) {
-            var _this5 = this;
+            var _this4 = this;
 
             var div = document.createElement('div');
             this.exampleListDiv.appendChild(div);
@@ -7811,9 +7836,9 @@ var Main = function () {
             var wordText = document.createElement('span');
 
             if (i == 0 && !showBtn) {
-                wordText.innerText = words[i].toUpperCase() + " (wake/stop word) ";
+                wordText.innerText = words[i].toUpperCase();
             } else if (i == words.length - 1 && !showBtn) {
-                wordText.innerText = words[i].toUpperCase() + " (catchall sign) ";
+                wordText.innerText = words[i].toUpperCase();
             } else {
                 wordText.innerText = words[i].toUpperCase() + " ";
                 wordText.style.fontWeight = "bold";
@@ -7828,12 +7853,63 @@ var Main = function () {
                 div.appendChild(button);
 
                 // Listen for mouse events when clicking the button
-                button.addEventListener('mousedown', function () {
-                    _this5.training = i;
-                    console.log(i);
-                });
-                button.addEventListener('mouseup', function () {
-                    return _this5.training = -1;
+                button.addEventListener('click', function _callee() {
+                    var j, image, logits, exampleCount;
+                    return regeneratorRuntime.async(function _callee$(_context2) {
+                        while (1) {
+                            switch (_context2.prev = _context2.next) {
+                                case 0:
+                                    j = 0;
+
+                                case 1:
+                                    if (!(j < 30)) {
+                                        _context2.next = 15;
+                                        break;
+                                    }
+
+                                    _context2.next = 4;
+                                    return regeneratorRuntime.awrap(_this4.sleep(1000));
+
+                                case 4:
+                                    clearCanvas();
+                                    runDectection();
+                                    _this4.training = i;
+                                    // Get image data from video element
+                                    image = tf.browser.fromPixels(canvas2);
+                                    //console.log(image.dataSync())
+
+                                    logits = featureExtractor.infer(image);
+                                    //logits.print();
+                                    // Train class if one of the buttons is held down
+
+                                    if (predLenght > 0) {
+                                        knn.addExample(logits, _this4.training);
+                                    }
+                                    // Add current image to classifier
+
+
+                                    exampleCount = knn.getClassExampleCount();
+                                    //console.log(exampleCount);
+
+                                    //if(Math.max(...exampleCount) > 0){
+
+                                    if (exampleCount[i] > 0) {
+                                        _this4.infoTexts[i].innerText = ' ' + exampleCount[i] + ' examples';
+                                    }
+
+                                    //}
+
+                                case 12:
+                                    j++;
+                                    _context2.next = 1;
+                                    break;
+
+                                case 15:
+                                case 'end':
+                                    return _context2.stop();
+                            }
+                        }
+                    }, null, _this4);
                 });
 
                 // Create clear button to emove training examples
@@ -7844,7 +7920,7 @@ var Main = function () {
                 btn.addEventListener('mousedown', function () {
                     console.log("clear training data for this label");
                     knn.clearLabel(i);
-                    _this5.infoTexts[i].innerText = " 0 examples";
+                    _this4.infoTexts[i].innerText = " 0 examples";
                 });
 
                 // Create info text
@@ -7855,57 +7931,15 @@ var Main = function () {
             }
         }
     }, {
-        key: 'startTraining',
-        value: function startTraining() {
-            if (this.timer) {
-                this.stopTraining();
-            }
-            this.timer = requestAnimationFrame(this.train.bind(this));
-        }
-    }, {
-        key: 'stopTraining',
-        value: function stopTraining() {
-            //video.pause();
-            cancelAnimationFrame(this.timer);
-        }
-    }, {
         key: 'updateExampleCount',
         value: function updateExampleCount() {
             var p = document.getElementById('count');
             p.innerText = 'Training: ' + words.length + ' words';
         }
     }, {
-        key: 'train',
-        value: function train() {
-            if (this.videoPlaying) {
-                // Get image data from video element
-                //const image = tf.browser.fromPixels(video);
-                //console.log(image)
-                var logits = featureExtractor.infer(video, 'conv_preds');
-                //logits.print();
-                // Train class if one of the buttons is held down
-                if (this.training != -1) {
-                    // Add current image to classifier
-                    knn.addExample(logits, this.training);
-                }
-
-                var exampleCount = knn.getCount();
-                //console.log(exampleCount);
-
-                //if(Math.max(...exampleCount) > 0){
-                for (var i = 0; i < words.length; i++) {
-                    if (exampleCount[i] > 0) {
-                        this.infoTexts[i].innerText = ' ' + exampleCount[i] + ' examples';
-                    }
-                }
-                //}
-            }
-            this.timer = requestAnimationFrame(this.train.bind(this));
-        }
-    }, {
         key: 'createVideoCallButton',
         value: function createVideoCallButton() {
-            var _this6 = this;
+            var _this5 = this;
 
             var div = document.getElementById("action-btn");
             div.innerHTML = "";
@@ -7918,22 +7952,22 @@ var Main = function () {
             loadBtn.innerText = "load model";
 
             loadBtn.addEventListener("click", function () {
-                _this6.trainingListDiv.style.display = "none";
+                _this5.trainingListDiv.style.display = "none";
                 knn.load("model1.json");
                 videoCall();
-                _this6.createPredictBtn();
+                _this5.createPredictBtn();
             });
 
             videoCallButton.addEventListener("click", function () {
-                _this6.trainingListDiv.style.display = "none";
+                _this5.trainingListDiv.style.display = "none";
                 videoCall();
-                _this6.createPredictBtn();
+                _this5.createPredictBtn();
             });
         }
     }, {
         key: 'createPredictBtn',
         value: function createPredictBtn() {
-            var _this7 = this;
+            var _this6 = this;
 
             var div = document.getElementById("action-btn");
             div.innerHTML = "";
@@ -7950,7 +7984,7 @@ var Main = function () {
 
             predButton.addEventListener('click', function () {
                 console.log("start predicting");
-                var exampleCount = knn.getCount();
+                var exampleCount = knn.getClassExampleCount();
                 //console.log(exampleCount)
                 // check if training has been done
                 //if(Math.max(...exampleCount) > 0){
@@ -7972,7 +8006,7 @@ var Main = function () {
 
                 //this.textLine.classList.remove("intro-steps")
                 //this.textLine.innerText = "Sign your query"
-                _this7.startPredicting();
+                _this6.startPredicting();
                 /*} else {
                   alert(
                     `You haven't added any examples yet.\n\nPress and hold on the "Add Example" button next to each word while performing the sign in front of the webcam.`
@@ -7984,9 +8018,6 @@ var Main = function () {
         key: 'startPredicting',
         value: function startPredicting() {
             // stop training
-            if (this.timer) {
-                this.stopTraining();
-            }
             //knn.load("model.json", () => {
             this.pred = requestAnimationFrame(this.predict.bind(this));
             //})
@@ -8007,53 +8038,45 @@ var Main = function () {
     }, {
         key: 'predict',
         value: function predict() {
-            var _this8 = this;
+            var _this7 = this;
 
-            var exampleCount, logits;
-            return regeneratorRuntime.async(function predict$(_context2) {
+            var exampleCount, image, logits;
+            return regeneratorRuntime.async(function predict$(_context3) {
                 while (1) {
-                    switch (_context2.prev = _context2.next) {
+                    switch (_context3.prev = _context3.next) {
                         case 0:
-                            //await this.sleep(400);
+                            clearCanvas();
                             this.now = Date.now();
                             this.elapsed = this.now - this.then;
 
                             if (this.elapsed > this.fpsInterval) {
-
                                 this.then = this.now - this.elapsed % this.fpsInterval;
                                 if (this.videoPlaying) {
-                                    exampleCount = knn.getCount();
-                                    //const image = dl.fromPixels(video);
+                                    exampleCount = knn.getClassExampleCount();
 
-                                    logits = featureExtractor.infer(video);
+                                    runDectection();
+                                    image = tf.browser.fromPixels(canvas2);
+                                    logits = featureExtractor.infer(image);
                                     //if(Math.max(...exampleCount) > 0){
 
-                                    knn.classify(logits, 10, function (error, res) {
-                                        if (error) {
-                                            console.log(error);
-                                        }
-                                        if (res.confidences[res.classIndex] >= predictionThreshold && res.classIndex != _this8.previousPrediction) {
-                                            if (_this8.round == 5 || res.classIndex == words.length - 1) {
-                                                if (_this8.round == 5) {
-                                                    console.log(_this8.nominee.indexOf(Math.max.apply(Math, _toConsumableArray(_this8.nominee))));
-                                                    _this8.previousPrediction = _this8.nominee.indexOf(Math.max.apply(Math, _toConsumableArray(_this8.nominee)));
+                                    if (predLenght > 0) {
+                                        knn.predictClass(logits, 10).then(function (res) {
+                                            if (res.confidences[res.classIndex] > predictionThreshold && res.classIndex != _this7.previousPrediction && res.classIndex != words.length - 1) {
+                                                console.log(words[res.classIndex]);
+                                                _this7.previousPrediction = res.classIndex;
+
+                                                //console.log(words[res.classIndex])
+                                                /*if(res == 'send') {
+                                                  socket.emit('chat', name + this.message);
+                                                  this.meassage = [];
                                                 }
-                                                _this8.round = 0;
-                                                _this8.nominee = new Array(words.length).fill(0);
-                                            } else {
-                                                _this8.round += 1;
-                                                _this8.nominee[res.classIndex] += 1;
+                                                else  {   
+                                                  this.message = this.message + ' ' + words[res.classIndex];
+                                                }*/
                                             }
-                                            //console.log(words[res.classIndex])
-                                            /*if(res == 'send') {
-                                              socket.emit('chat', name + this.message);
-                                              this.meassage = [];
-                                            }
-                                            else  {   
-                                              this.message = this.message + ' ' + words[res.classIndex];
-                                            }*/
-                                        }
-                                    }).then(logits.dispose());
+                                        }).then(logits.dispose(), image.dispose());
+                                    }
+
                                     /*} else {
                                       image.dispose()
                                     }*/
@@ -8079,9 +8102,9 @@ var Main = function () {
                             }
                             this.pred = requestAnimationFrame(this.predict.bind(this));
 
-                        case 4:
+                        case 5:
                         case 'end':
-                            return _context2.stop();
+                            return _context3.stop();
                     }
                 }
             }, null, this);
@@ -8093,9 +8116,9 @@ var Main = function () {
 
 function videoCall() {
     var InitPeer, MakePeer, FrontAnswer, SignalAnswer, CreateVideo, SessionActive, RemovePeer;
-    return regeneratorRuntime.async(function videoCall$(_context3) {
+    return regeneratorRuntime.async(function videoCall$(_context4) {
         while (1) {
-            switch (_context3.prev = _context3.next) {
+            switch (_context4.prev = _context4.next) {
                 case 0:
                     RemovePeer = function RemovePeer() {
                         document.getElementById("peerVideo").remove();
@@ -8174,7 +8197,7 @@ function videoCall() {
 
                 case 13:
                 case 'end':
-                    return _context3.stop();
+                    return _context4.stop();
             }
         }
     }, null, this);
@@ -8207,7 +8230,6 @@ socket.on('chat', function (data) {
 var main = null;
 window.addEventListener('load', function () {
     main = new Main();
-    setupCamera();
     main.welcomeScreen();
 });
 
