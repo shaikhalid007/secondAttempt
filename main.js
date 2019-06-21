@@ -30,7 +30,7 @@ handTrack.startVideo(video).then( status => {
                     video.onloadedmetadata = function(e) {
                         video.play();
                     };
-                    context2.clearRect(0, 0, 224, 224)
+                    
                     setInterval(runDectection, 1000)
                 },
                 function(err) {
@@ -47,6 +47,7 @@ handTrack.load(modelParams).then(lmodel => {
 })
 
 function runDectection()    {
+    context2.clearRect(0, 0, 224, 224)
     model.detect(video).then(predictions => {
         console.log(predictions)
         model.renderPredictions(predictions, canvas, context, video)
