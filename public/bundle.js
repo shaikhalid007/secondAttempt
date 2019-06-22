@@ -2677,24 +2677,28 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
+    if (superCtor) {
+      ctor.super_ = superCtor
+      ctor.prototype = Object.create(superCtor.prototype, {
+        constructor: {
+          value: ctor,
+          enumerable: false,
+          writable: true,
+          configurable: true
+        }
+      })
+    }
   };
 } else {
   // old school shim for old browsers
   module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
+    if (superCtor) {
+      ctor.super_ = superCtor
+      var TempCtor = function () {}
+      TempCtor.prototype = superCtor.prototype
+      ctor.prototype = new TempCtor()
+      ctor.prototype.constructor = ctor
+    }
   }
 }
 
@@ -2732,7 +2736,8 @@ module.exports = Array.isArray || function (arr) {
 (function (process){
 'use strict';
 
-if (!process.version ||
+if (typeof process === 'undefined' ||
+    !process.version ||
     process.version.indexOf('v0.') === 0 ||
     process.version.indexOf('v1.') === 0 && process.version.indexOf('v1.8.') !== 0) {
   module.exports = { nextTick: nextTick };
@@ -5123,7 +5128,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":14,"./internal/streams/destroy":20,"./internal/streams/stream":21,"_process":12,"core-util-is":4,"inherits":8,"process-nextick-args":11,"safe-buffer":24,"timers":29,"util-deprecate":30}],19:[function(require,module,exports){
+},{"./_stream_duplex":14,"./internal/streams/destroy":20,"./internal/streams/stream":21,"_process":12,"core-util-is":4,"inherits":8,"process-nextick-args":11,"safe-buffer":24,"timers":30,"util-deprecate":31}],19:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -7376,6 +7381,59 @@ function plural(ms, msAbs, n, name) {
 }
 
 },{}],29:[function(require,module,exports){
+
+/*
+ * Pulled into a separate npm module from
+ * https://github.com/pa7/nude.js/blob/master/noworker.nude.js
+ * by Param Aggarwal (http://paramaggarwal.com)
+ * 
+ * Original License:
+ * Nude.js - Nudity detection with Javascript and HTMLCanvas
+ * 
+ * Author: Patrick Wied ( http://www.patrick-wied.at )
+ * Version: 0.1  (2010-11-21)
+ * License: MIT License
+ */
+
+
+function isSkin (r, g, b) {
+
+  // classify based on RGB
+  var rgbClassifier = ((r > 95) && (g > 40 && g < 100) && (b > 20) && ((Math.max(r, g, b) - Math.min(r, g, b)) > 15) && (Math.abs(r - g) > 15) && (r > g) && (r > b));
+
+  // classify based on normalized RGB
+  var sum = r + g + b;
+  var nr = (r / sum),
+    ng = (g / sum),
+    nb = (b / sum),
+    normRgbClassifier = (((nr / ng) > 1.185) && (((r * b) / (Math.pow(r + g + b, 2))) > 0.107) && (((r * g) / (Math.pow(r + g + b, 2))) > 0.112));
+
+  // classify based on hue
+  var h = 0,
+    mx = Math.max(r, g, b),
+    mn = Math.min(r, g, b),
+    dif = mx - mn;
+
+  if (mx == r) {
+    h = (g - b) / dif;
+  } else if (mx == g) {
+    h = 2 + ((g - r) / dif)
+  } else {
+    h = 4 + ((r - g) / dif);
+  }
+  h = h * 60;
+  if (h < 0) {
+    h = h + 360;
+  }
+  var s = 1 - (3 * ((Math.min(r, g, b)) / (r + g + b)));
+  var hsvClassifier = (h > 0 && h < 35 && s > 0.23 && s < 0.68);
+
+  // match either of the classifiers
+  return (rgbClassifier || normRgbClassifier || hsvClassifier); // 
+}
+
+module.exports = isSkin;
+},{}],30:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -7454,7 +7512,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":12,"timers":29}],30:[function(require,module,exports){
+},{"process/browser.js":12,"timers":30}],31:[function(require,module,exports){
 (function (global){
 
 /**
@@ -7525,7 +7583,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -7535,65 +7593,179 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var video = document.querySelector('video');
 var knn;
 var featureExtractor;
-var predLenght;
+var isSkin = require('skintone');
 
-var canvas1 = document.getElementById('canvas1');
-var context = canvas1.getContext('2d');
-var canvas2 = document.getElementById('canvas2');
-var context2 = canvas2.getContext('2d');
+var lblueSlider = document.getElementById("lblueRange");
+var lblueValue = document.getElementById("lblueValue");
+lblueValue.innerHTML = lblueSlider.value;
+var lgreenSlider = document.getElementById("lgreenRange");
+var lgreenValue = document.getElementById("lgreenValue");
+lgreenValue.innerHTML = lgreenSlider.value;
+var lredSlider = document.getElementById("lredRange");
+var lredValue = document.getElementById("lredValue");
+lredValue.innerHTML = lredSlider.value;
 
-var model;
-var modelParams = {
-    flipHorizontal: true, // flip e.g for video 
-    imageScaleFactor: 1.0, // reduce input image size for gains in speed.
-    maxNumBoxes: 20, // maximum number of boxes to detect
-    iouThreshold: 0.5, // ioU threshold for non-max suppression
-    scoreThreshold: 0.79 // confidence threshold for predictions.
+var blueSlider = document.getElementById("blueRange");
+var blueValue = document.getElementById("blueValue");
+blueValue.innerHTML = blueSlider.value;
+var greenSlider = document.getElementById("greenRange");
+var greenValue = document.getElementById("greenValue");
+greenValue.innerHTML = greenSlider.value;
+var redSlider = document.getElementById("redRange");
+var redValue = document.getElementById("redValue");
+redValue.innerHTML = redSlider.value;
+
+blueSlider.oninput = function () {
+    blueValue.innerHTML = blueSlider.value;
+};
+greenSlider.oninput = function () {
+    greenValue.innerHTML = greenSlider.value;
+};
+redSlider.oninput = function () {
+    redValue.innerHTML = redSlider.value;
 };
 
-handTrack.load(modelParams).then(function (lmodel) {
-    console.log("loading model");
-    model = lmodel;
-});
+lblueSlider.oninput = function () {
+    lblueValue.innerHTML = lblueSlider.value;
+};
+lgreenSlider.oninput = function () {
+    lgreenValue.innerHTML = lgreenSlider.value;
+};
+lredSlider.oninput = function () {
+    lredValue.innerHTML = lredSlider.value;
+};
+
+var canvas1 = document.getElementById('canvas1');
+var context1 = canvas1.getContext('2d');
+var canvas2 = document.getElementById('canvas2');
+var context2 = canvas2.getContext('2d');
+var canvas3 = document.getElementById('canvas2');
+var context3 = canvas2.getContext('2d');
 
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
-handTrack.startVideo(video).then(function (status) {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Browser API navigator.mediaDevices.getUserMedia not available');
-    }
-    video.width = IMAGE_SIZE;
-    video.height = IMAGE_SIZE;
-    var stream = navigator.mediaDevices.getUserMedia({
-        'audio': false,
-        'video': true
-    });
-    video.srcObject = stream;
-    gstream = stream;
-    return new Promise(function (resolve) {
-        video.onloadedmetadata = function () {
-            resolve(video);
-            video.play();
-        };
-    });
-});
+function setupCamera() {
+    var stream;
+    return regeneratorRuntime.async(function setupCamera$(_context2) {
+        while (1) {
+            switch (_context2.prev = _context2.next) {
+                case 0:
+                    if (!(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
+                        _context2.next = 2;
+                        break;
+                    }
 
-function runDectection() {
-    var arr = void 0;
-    model.detect(video).then(function (predictions) {
-        model.renderPredictions(predictions, canvas1, context, video);
-        predLenght = predictions.length;
-        if (predictions.length > 0) {
-            for (var i = 0; i < predictions.length; i++) {
-                arr = predictions[i].bbox;
-                context2.drawImage(canvas1, arr[0] - 10, arr[1] - 10, arr[2] + 10, arr[3] + 10, arr[0] - 10, arr[1] - 10, arr[2] + 10, arr[3] + 10);
+                    throw new Error('Browser API navigator.mediaDevices.getUserMedia not available');
+
+                case 2:
+                    video.width = IMAGE_SIZE;
+                    video.height = IMAGE_SIZE;
+                    _context2.next = 6;
+                    return regeneratorRuntime.awrap(navigator.mediaDevices.getUserMedia({
+                        'audio': false,
+                        'video': true
+                    }));
+
+                case 6:
+                    stream = _context2.sent;
+
+                    video.srcObject = stream;
+                    gstream = stream;
+
+                    video.addEventListener('play', function _callee() {
+                        var $this;
+                        return regeneratorRuntime.async(function _callee$(_context) {
+                            while (1) {
+                                switch (_context.prev = _context.next) {
+                                    case 0:
+                                        $this = this; //cache
+
+                                        (function loop() {
+                                            if (!$this.paused && !$this.ended) {
+                                                context1.drawImage($this, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+                                                /*let lower = [parsefllredSlider.value, lgreenSlider.value, lblueSlider.value,0];
+                                                let higher = [redSlider.value, greenSlider.value, blueSlider.value, 255];
+                                                let src = cv.imread('canvas1');
+                                                let dst = new cv.Mat();
+                                                let low = new cv.Mat(src.rows, src.cols, src.type(), lower);
+                                                let high = new cv.Mat(src.rows, src.cols, src.type(), higher);
+                                                cv.inRange(src, low, high, dst);
+                                                cv.imshow('canvas2', dst);
+                                                src.delete(); dst.delete(); low.delete(); high.delete();*/
+                                                computeFrame();
+                                                setTimeout(loop, 1000 / 30); // drawing at 30fps
+                                            }
+                                        })();
+
+                                    case 2:
+                                    case 'end':
+                                        return _context.stop();
+                                }
+                            }
+                        }, null, this);
+                    });
+
+                    return _context2.abrupt('return', new Promise(function (resolve) {
+                        video.onloadedmetadata = function () {
+                            resolve(video);
+                        };
+                    }));
+
+                case 11:
+                case 'end':
+                    return _context2.stop();
             }
         }
+    }, null, this);
+}
+
+function sleep(ms) {
+    return new Promise(function (resolve) {
+        return setTimeout(resolve, ms);
     });
 }
 
-function clearCanvas() {
-    context2.clearRect(0, 0, 224, 224);
+function inrange(r, g, b) {
+    var range = 2;
+    if (isSkin(r - range, g - range, b - range) || isSkin(r - range, g + range, b - range) || isSkin(r - range, g - range, b + range) || isSkin(r + range, g - range, b - range) || isSkin(r - range, g + range, b + range) || isSkin(r + range, g + range, b - range) || isSkin(r + range, g - range, b + range) || isSkin(r + range, g + range, b + range)) {
+        return true;
+    }
+}
+
+function computeFrame() {
+    var frame = context1.getImageData(0, 0, IMAGE_SIZE, IMAGE_SIZE);
+    var l = frame.data.length / 4;
+    for (var i = 0; i < l; i++) {
+        var r = frame.data[i * 4 + 0];
+        var g = frame.data[i * 4 + 1];
+        var b = frame.data[i * 4 + 2];
+        if (!isSkin(r, g, b) && !inrange(r, g, b)) {
+            frame.data[i * 4 + 3] = 0;
+        } else {
+            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
+            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
+            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
+            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
+            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
+            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
+        }
+    }
+
+    context2.putImageData(frame, 0, 0);
+    var src = cv.imread(canvas2);
+    var dst = new cv.Mat();
+    var M = cv.Mat.ones(4, 4, cv.CV_8U);
+    var anchor = new cv.Point(-1, -1);
+    cv.morphologyEx(src, dst, cv.MORPH_OPEN, M, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+    //let blurred = new cv.Mat();
+    //cv.medianBlur(src, blurred, 5)
+    cv.imshow(canvas3, dst);
+    src.delete();
+    dst.delete();
+    M.delete();
+
+    //blurred.delete();
+    return;
 }
 
 var IMAGE_SIZE = 224;
@@ -7791,21 +7963,21 @@ var Main = function () {
     }, {
         key: 'loadKNN',
         value: function loadKNN() {
-            return regeneratorRuntime.async(function loadKNN$(_context) {
+            return regeneratorRuntime.async(function loadKNN$(_context3) {
                 while (1) {
-                    switch (_context.prev = _context.next) {
+                    switch (_context3.prev = _context3.next) {
                         case 0:
 
                             knn = knnClassifier.create();
-                            _context.next = 3;
+                            _context3.next = 3;
                             return regeneratorRuntime.awrap(mobilenet.load());
 
                         case 3:
-                            featureExtractor = _context.sent;
+                            featureExtractor = _context3.sent;
 
                         case 4:
                         case 'end':
-                            return _context.stop();
+                            return _context3.stop();
                     }
                 }
             }, null, this);
@@ -7853,26 +8025,24 @@ var Main = function () {
                 div.appendChild(button);
 
                 // Listen for mouse events when clicking the button
-                button.addEventListener('click', function _callee() {
+                button.addEventListener('click', function _callee2() {
                     var j, image, logits, exampleCount;
-                    return regeneratorRuntime.async(function _callee$(_context2) {
+                    return regeneratorRuntime.async(function _callee2$(_context4) {
                         while (1) {
-                            switch (_context2.prev = _context2.next) {
+                            switch (_context4.prev = _context4.next) {
                                 case 0:
                                     j = 0;
 
                                 case 1:
-                                    if (!(j < 30)) {
-                                        _context2.next = 15;
+                                    if (!(j < 20)) {
+                                        _context4.next = 13;
                                         break;
                                     }
 
-                                    _context2.next = 4;
-                                    return regeneratorRuntime.awrap(_this4.sleep(1000));
+                                    _context4.next = 4;
+                                    return regeneratorRuntime.awrap(_this4.sleep(500));
 
                                 case 4:
-                                    clearCanvas();
-                                    runDectection();
                                     _this4.training = i;
                                     // Get image data from video element
                                     image = tf.browser.fromPixels(canvas2);
@@ -7882,9 +8052,8 @@ var Main = function () {
                                     //logits.print();
                                     // Train class if one of the buttons is held down
 
-                                    if (predLenght > 0) {
-                                        knn.addExample(logits, _this4.training);
-                                    }
+                                    knn.addExample(logits, _this4.training);
+
                                     // Add current image to classifier
 
 
@@ -7899,14 +8068,14 @@ var Main = function () {
 
                                     //}
 
-                                case 12:
+                                case 10:
                                     j++;
-                                    _context2.next = 1;
+                                    _context4.next = 1;
                                     break;
 
-                                case 15:
+                                case 13:
                                 case 'end':
-                                    return _context2.stop();
+                                    return _context4.stop();
                             }
                         }
                     }, null, _this4);
@@ -8020,13 +8189,14 @@ var Main = function () {
             // stop training
             //knn.load("model.json", () => {
             this.pred = requestAnimationFrame(this.predict.bind(this));
+            //this.predict();
             //})
         }
     }, {
         key: 'pausePredicting',
         value: function pausePredicting() {
             console.log("pause predicting");
-            cancelAnimationFrame(this.pred);
+            //cancelAnimationFrame(this.pred)
         }
     }, {
         key: 'sleep',
@@ -8041,41 +8211,37 @@ var Main = function () {
             var _this7 = this;
 
             var exampleCount, image, logits;
-            return regeneratorRuntime.async(function predict$(_context3) {
+            return regeneratorRuntime.async(function predict$(_context5) {
                 while (1) {
-                    switch (_context3.prev = _context3.next) {
+                    switch (_context5.prev = _context5.next) {
                         case 0:
-                            clearCanvas();
                             this.now = Date.now();
+
                             this.elapsed = this.now - this.then;
 
                             if (this.elapsed > this.fpsInterval) {
                                 this.then = this.now - this.elapsed % this.fpsInterval;
                                 if (this.videoPlaying) {
                                     exampleCount = knn.getClassExampleCount();
-
-                                    runDectection();
                                     image = tf.browser.fromPixels(canvas2);
                                     logits = featureExtractor.infer(image);
                                     //if(Math.max(...exampleCount) > 0){
 
-                                    if (predLenght > 0) {
-                                        knn.predictClass(logits, 10).then(function (res) {
-                                            if (res.confidences[res.classIndex] > predictionThreshold && res.classIndex != _this7.previousPrediction && res.classIndex != words.length - 1) {
-                                                console.log(words[res.classIndex]);
-                                                _this7.previousPrediction = res.classIndex;
+                                    knn.predictClass(logits, 10).then(function (res) {
+                                        if (res.confidences[res.classIndex] > predictionThreshold && res.classIndex != _this7.previousPrediction && res.classIndex != words.length - 1) {
+                                            console.log(words[res.classIndex]);
+                                            _this7.previousPrediction = res.classIndex;
 
-                                                //console.log(words[res.classIndex])
-                                                /*if(res == 'send') {
-                                                  socket.emit('chat', name + this.message);
-                                                  this.meassage = [];
-                                                }
-                                                else  {   
-                                                  this.message = this.message + ' ' + words[res.classIndex];
-                                                }*/
+                                            //console.log(words[res.classIndex])
+                                            /*if(res == 'send') {
+                                              socket.emit('chat', name + this.message);
+                                              this.meassage = [];
                                             }
-                                        }).then(logits.dispose(), image.dispose());
-                                    }
+                                            else  {   
+                                              this.message = this.message + ' ' + words[res.classIndex];
+                                            }*/
+                                        }
+                                    }).then(logits.dispose(), image.dispose());
 
                                     /*} else {
                                       image.dispose()
@@ -8102,9 +8268,9 @@ var Main = function () {
                             }
                             this.pred = requestAnimationFrame(this.predict.bind(this));
 
-                        case 5:
+                        case 4:
                         case 'end':
-                            return _context3.stop();
+                            return _context5.stop();
                     }
                 }
             }, null, this);
@@ -8116,9 +8282,9 @@ var Main = function () {
 
 function videoCall() {
     var InitPeer, MakePeer, FrontAnswer, SignalAnswer, CreateVideo, SessionActive, RemovePeer;
-    return regeneratorRuntime.async(function videoCall$(_context4) {
+    return regeneratorRuntime.async(function videoCall$(_context6) {
         while (1) {
-            switch (_context4.prev = _context4.next) {
+            switch (_context6.prev = _context6.next) {
                 case 0:
                     RemovePeer = function RemovePeer() {
                         document.getElementById("peerVideo").remove();
@@ -8197,7 +8363,7 @@ function videoCall() {
 
                 case 13:
                 case 'end':
-                    return _context4.stop();
+                    return _context6.stop();
             }
         }
     }, null, this);
@@ -8230,7 +8396,8 @@ socket.on('chat', function (data) {
 var main = null;
 window.addEventListener('load', function () {
     main = new Main();
+    setupCamera();
     main.welcomeScreen();
 });
 
-},{"simple-peer":25}]},{},[31]);
+},{"simple-peer":25,"skintone":29}]},{},[32]);

@@ -1,72 +1,170 @@
-
-const video = document.querySelector('video');
+const video = document.querySelector('video')
 var knn;
 var featureExtractor
-var predLenght;
+var isSkin = require('skintone');
 
-var canvas1 = document.getElementById('canvas1')
-var context = canvas1.getContext('2d');
-var canvas2 = document.getElementById('canvas2')
-var context2 = canvas2.getContext('2d');
 
-var model;
-const modelParams = {
-    flipHorizontal: true,   // flip e.g for video 
-    imageScaleFactor: 1.0,  // reduce input image size for gains in speed.
-    maxNumBoxes: 20,        // maximum number of boxes to detect
-    iouThreshold: 0.5,      // ioU threshold for non-max suppression
-    scoreThreshold: 0.79,    // confidence threshold for predictions.
+var lblueSlider = document.getElementById("lblueRange");
+var lblueValue = document.getElementById("lblueValue");
+lblueValue.innerHTML = lblueSlider.value;
+var lgreenSlider = document.getElementById("lgreenRange");
+var lgreenValue = document.getElementById("lgreenValue");
+lgreenValue.innerHTML = lgreenSlider.value;
+var lredSlider = document.getElementById("lredRange");
+var lredValue = document.getElementById("lredValue");
+lredValue.innerHTML = lredSlider.value;
+
+
+var blueSlider = document.getElementById("blueRange");
+var blueValue = document.getElementById("blueValue");
+blueValue.innerHTML = blueSlider.value;
+var greenSlider = document.getElementById("greenRange");
+var greenValue = document.getElementById("greenValue");
+greenValue.innerHTML = greenSlider.value;
+var redSlider = document.getElementById("redRange");
+var redValue = document.getElementById("redValue");
+redValue.innerHTML = redSlider.value;
+
+
+blueSlider.oninput = function() {
+  blueValue.innerHTML = blueSlider.value;
+}
+greenSlider.oninput = function() {
+  greenValue.innerHTML = greenSlider.value;
+}
+redSlider.oninput = function() {
+  redValue.innerHTML = redSlider.value;
 }
 
-handTrack.load(modelParams).then(lmodel => {
-    console.log("loading model")
-    model = lmodel;
-})
+
+lblueSlider.oninput = function() {
+  lblueValue.innerHTML = lblueSlider.value;
+}
+lgreenSlider.oninput = function() {
+  lgreenValue.innerHTML = lgreenSlider.value;
+}
+lredSlider.oninput = function() {
+  lredValue.innerHTML = lredSlider.value;
+}
+
+
+
+var canvas1 = document.getElementById('canvas1')
+var context1 = canvas1.getContext('2d');
+var canvas2 = document.getElementById('canvas2')
+var context2 = canvas2.getContext('2d');
+var canvas3 = document.getElementById('canvas2')
+var context3 = canvas2.getContext('2d');
+
+
 
 
 navigator.getUserMedia = navigator.getUserMedia ||
 navigator.webkitGetUserMedia ||
 navigator.mozGetUserMedia;
 
-handTrack.startVideo(video).then( status => {
+async function setupCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     throw new Error(
         'Browser API navigator.mediaDevices.getUserMedia not available');
   }
   video.width = IMAGE_SIZE
   video.height = IMAGE_SIZE
-  const stream = navigator.mediaDevices.getUserMedia({
+  const stream = await navigator.mediaDevices.getUserMedia({
     'audio': false,
     'video': true
   });
   video.srcObject = stream;
   gstream = stream;
+  
+  video.addEventListener('play', async function () {
+    var $this = this; //cache
+    (function loop() {
+        if (!$this.paused && !$this.ended) {
+            context1.drawImage($this, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+            /*let lower = [parsefllredSlider.value, lgreenSlider.value, lblueSlider.value,0];
+            let higher = [redSlider.value, greenSlider.value, blueSlider.value, 255];
+            let src = cv.imread('canvas1');
+            let dst = new cv.Mat();
+            let low = new cv.Mat(src.rows, src.cols, src.type(), lower);
+            let high = new cv.Mat(src.rows, src.cols, src.type(), higher);
+            cv.inRange(src, low, high, dst);
+            cv.imshow('canvas2', dst);
+            src.delete(); dst.delete(); low.delete(); high.delete();*/
+            computeFrame();
+            setTimeout(loop, 1000 / 30); // drawing at 30fps
+        }
+    })();
+  });
+  
+
   return new Promise((resolve) => {
     video.onloadedmetadata = () => {
       resolve(video);
-      video.play()
     };
   });
-});
-
-
-function runDectection()    {
-  let arr;
-  model.detect(video).then(predictions => {
-      model.renderPredictions(predictions, canvas1, context, video)
-      predLenght = predictions.length;
-      if(predictions.length >0)   {
-          for(let i=0; i< predictions.length; i++)    { 
-              arr = predictions[i].bbox;
-              context2.drawImage(canvas1, arr[0]-10, arr[1]-10, arr[2]+10, arr[3]+10,arr[0]-10, arr[1]-10, arr[2]+10, arr[3]+10);
-          }
-      }
-  })
 }
 
-function clearCanvas()  {
-  context2.clearRect(0, 0, 224, 224)
+
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+function inrange(r,g,b){
+  let range = 2
+  if(isSkin(r-range,g-range,b-range)||
+  isSkin(r-range,g+range,b-range)||
+  isSkin(r-range,g-range,b+range)||
+  isSkin(r+range,g-range,b-range)||
+  isSkin(r-range,g+range,b+range)||
+  isSkin(r+range,g+range,b-range)||
+  isSkin(r+range,g-range,b+range)||
+  isSkin(r+range,g+range,b+range)) {
+    return true
+  }
+}
+
+
+
+function computeFrame() {
+  let frame = context1.getImageData(0, 0, IMAGE_SIZE, IMAGE_SIZE);
+      let l = frame.data.length / 4;
+  for (let i = 0; i < l; i++) {
+    let r = frame.data[i * 4 + 0];
+    let g = frame.data[i * 4 + 1];
+    let b = frame.data[i * 4 + 2];
+    if (!isSkin(r,g,b) && !inrange(r,g,b)) {
+      frame.data[i * 4 + 3] = 0;
+    }
+    else  {
+      frame.data[(i+1) * 4 + 3]=frame.data[(i-1) * 4 + 3]=255;
+      frame.data[(i+1) * 4 + 3]=frame.data[(i-1) * 4 + 3]=255;
+      frame.data[(i+1) * 4 + 3]=frame.data[(i-1) * 4 + 3]=255;
+      frame.data[(i+2) * 4 + 3]=frame.data[(i-2) * 4 + 3]=255;
+      frame.data[(i+2) * 4 + 3]=frame.data[(i-2) * 4 + 3]=255;
+      frame.data[(i+2) * 4 + 3]=frame.data[(i-2) * 4 + 3]=255;
+    }     
+  }
+  
+  context2.putImageData(frame, 0, 0);
+  let src = cv.imread(canvas2);
+  let dst = new cv.Mat();
+  let M = cv.Mat.ones(4, 4, cv.CV_8U);
+  let anchor = new cv.Point(-1, -1);
+cv.morphologyEx(src, dst, cv.MORPH_OPEN, M, anchor, 1,
+                cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+  //let blurred = new cv.Mat();
+  //cv.medianBlur(src, blurred, 5)
+  cv.imshow(canvas3,dst)
+  src.delete();
+  dst.delete();
+  M.delete();
+
+  //blurred.delete();
+  return;
+}
+
 
 
 
@@ -319,10 +417,8 @@ class Main  {
     
           // Listen for mouse events when clicking the button
           button.addEventListener('click', async () => {
-          for(let j=0; j<30; j++) { 
-            await this.sleep(1000)
-              clearCanvas();
-              runDectection();
+          for(let j=0; j<20; j++) { 
+            await this.sleep(500)
               this.training = i;
               // Get image data from video element
           const image = tf.browser.fromPixels(canvas2);
@@ -330,9 +426,9 @@ class Main  {
           const logits = featureExtractor.infer(image);
           //logits.print();
           // Train class if one of the buttons is held down
-          if(predLenght>0)  {
-            knn.addExample(logits, this.training);
-          }
+         
+          knn.addExample(logits, this.training);
+
             // Add current image to classifier
             
       
@@ -460,13 +556,14 @@ class Main  {
         // stop training
         //knn.load("model.json", () => {
           this.pred = requestAnimationFrame(this.predict.bind(this))
+          //this.predict();
         //})
         
     }
 
     pausePredicting(){
         console.log("pause predicting")
-        cancelAnimationFrame(this.pred)
+        //cancelAnimationFrame(this.pred)
     }
 
     sleep(ms) {
@@ -475,19 +572,18 @@ class Main  {
     
 
     async predict (){
-        clearCanvas();
         this.now = Date.now()
+        
         this.elapsed = this.now - this.then
     
         if(this.elapsed > this.fpsInterval){
           this.then = this.now - (this.elapsed % this.fpsInterval);
           if(this.videoPlaying){
             const exampleCount = knn.getClassExampleCount();
-            runDectection()
             const image = tf.browser.fromPixels(canvas2);
             const logits = featureExtractor.infer(image)
             //if(Math.max(...exampleCount) > 0){
-            if(predLenght>0)  {
+           
               knn.predictClass(logits, 10).then((res) => {
                 if(res.confidences[res.classIndex] > predictionThreshold &&
                   res.classIndex != this.previousPrediction &&
@@ -506,7 +602,6 @@ class Main  {
                   
                 }
               }).then(logits.dispose(),image.dispose())
-            }
             
             /*} else {
               image.dispose()
@@ -646,6 +741,7 @@ socket.on('chat', function(data){
 
 var main = null
 window.addEventListener('load', () => {
-    main = new Main()
-    main.welcomeScreen()
+    main = new Main();
+    setupCamera();
+    main.welcomeScreen();
 })
