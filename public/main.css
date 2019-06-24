@@ -35,16 +35,6 @@ p{
   pointer-events:none;
 }
 
-.localStream-normal {
-  position: absolute;
-  margin: 0px;
-  top: 2%;
-  right: 0px;
-  width: 277px;
-  height: 277px;
-  pointer-events:none;
-}
-
 .remoteStream {
   position: absolute;
   margin:auto;
@@ -83,4 +73,20 @@ p{
   position: absolute;
   top: 200px;
   right: 2%;
+}
+
+.words  {
+  font-size: 30px;
+  margin: auto;
+  position: absolute;
+  bottom: 2%;
+  left: 2%;
+}
+
+.messageContainer {
+  font-size: 24px;
+  margin: auto;
+  position: absolute;
+  top: 2%;
+  right: 250px;
 }

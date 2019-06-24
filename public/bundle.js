@@ -7591,19 +7591,35 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var video = document.querySelector('video');
+var messageBox = document.getElementById('message-box');
+var IMAGE_SIZE = 224;
+var Peer = require('simple-peer');
+var socket = io();
+var client = {};
+var gstream = null;
+
+var TOPK = 10;
+
+var predictionThreshold = 0.80;
+
+var words = ['hello', 'send', 'other'];
+var name = null;
 var knn;
 var featureExtractor;
+var model;
 var isSkin = require('skintone');
-
-var lblueSlider = document.getElementById("lblueRange");
-var lblueValue = document.getElementById("lblueValue");
-lblueValue.innerHTML = lblueSlider.value;
-var lgreenSlider = document.getElementById("lgreenRange");
-var lgreenValue = document.getElementById("lgreenValue");
-lgreenValue.innerHTML = lgreenSlider.value;
-var lredSlider = document.getElementById("lredRange");
-var lredValue = document.getElementById("lredValue");
-lredValue.innerHTML = lredSlider.value;
+var poses = [];
+var poseNet;
+var options = { imageScaleFactor: 1.0,
+    outputStride: 16,
+    flipHorizontal: false,
+    minConfidence: 0.2,
+    maxPoseDetections: 3,
+    scoreThreshold: 0.5,
+    nmsRadius: 20,
+    detectionType: 'single',
+    multiplier: 1.0
+};
 
 var blueSlider = document.getElementById("blueRange");
 var blueValue = document.getElementById("blueValue");
@@ -7625,95 +7641,99 @@ redSlider.oninput = function () {
     redValue.innerHTML = redSlider.value;
 };
 
-lblueSlider.oninput = function () {
-    lblueValue.innerHTML = lblueSlider.value;
+var lhSlider = document.getElementById("lhRange");
+var lhValue = document.getElementById("lhValue");
+lhValue.innerHTML = lhSlider.value;
+var lsSlider = document.getElementById("lsRange");
+var lsValue = document.getElementById("lsValue");
+lsValue.innerHTML = lsSlider.value;
+var lvSlider = document.getElementById("lvRange");
+var lvValue = document.getElementById("lvValue");
+lvValue.innerHTML = lvSlider.value;
+
+lhSlider.oninput = function () {
+    lhValue.innerHTML = lhSlider.value;
 };
-lgreenSlider.oninput = function () {
-    lgreenValue.innerHTML = lgreenSlider.value;
+lsSlider.oninput = function () {
+    lsValue.innerHTML = lsSlider.value;
 };
-lredSlider.oninput = function () {
-    lredValue.innerHTML = lredSlider.value;
+lvSlider.oninput = function () {
+    lvValue.innerHTML = lvSlider.value;
+};
+
+var hhSlider = document.getElementById("hhRange");
+var hhValue = document.getElementById("hhValue");
+hhValue.innerHTML = hhSlider.value;
+var hsSlider = document.getElementById("hsRange");
+var hsValue = document.getElementById("hsValue");
+hsValue.innerHTML = hsSlider.value;
+var hvSlider = document.getElementById("hvRange");
+var hvValue = document.getElementById("hvValue");
+hvValue.innerHTML = hvSlider.value;
+
+hhSlider.oninput = function () {
+    hhValue.innerHTML = hhSlider.value;
+};
+hsSlider.oninput = function () {
+    hsValue.innerHTML = hsSlider.value;
+};
+hvSlider.oninput = function () {
+    hvValue.innerHTML = hvSlider.value;
 };
 
 var canvas1 = document.getElementById('canvas1');
 var context1 = canvas1.getContext('2d');
 var canvas2 = document.getElementById('canvas2');
 var context2 = canvas2.getContext('2d');
-var canvas3 = document.getElementById('canvas2');
-var context3 = canvas2.getContext('2d');
+var canvas3 = document.getElementById('canvas3');
+var context3 = canvas3.getContext('2d');
 
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
 function setupCamera() {
     var stream;
-    return regeneratorRuntime.async(function setupCamera$(_context2) {
+    return regeneratorRuntime.async(function setupCamera$(_context) {
         while (1) {
-            switch (_context2.prev = _context2.next) {
+            switch (_context.prev = _context.next) {
                 case 0:
                     if (!(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)) {
-                        _context2.next = 2;
+                        _context.next = 2;
                         break;
                     }
 
                     throw new Error('Browser API navigator.mediaDevices.getUserMedia not available');
 
                 case 2:
-                    video.width = IMAGE_SIZE;
-                    video.height = IMAGE_SIZE;
-                    _context2.next = 6;
+                    video.width = 224;
+                    video.height = 224;
+                    _context.next = 6;
                     return regeneratorRuntime.awrap(navigator.mediaDevices.getUserMedia({
                         'audio': false,
                         'video': true
                     }));
 
                 case 6:
-                    stream = _context2.sent;
+                    stream = _context.sent;
 
                     video.srcObject = stream;
                     gstream = stream;
 
-                    video.addEventListener('play', function _callee() {
-                        var $this;
-                        return regeneratorRuntime.async(function _callee$(_context) {
-                            while (1) {
-                                switch (_context.prev = _context.next) {
-                                    case 0:
-                                        $this = this; //cache
-
-                                        (function loop() {
-                                            if (!$this.paused && !$this.ended) {
-                                                context1.drawImage($this, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
-                                                /*let lower = [parsefllredSlider.value, lgreenSlider.value, lblueSlider.value,0];
-                                                let higher = [redSlider.value, greenSlider.value, blueSlider.value, 255];
-                                                let src = cv.imread('canvas1');
-                                                let dst = new cv.Mat();
-                                                let low = new cv.Mat(src.rows, src.cols, src.type(), lower);
-                                                let high = new cv.Mat(src.rows, src.cols, src.type(), higher);
-                                                cv.inRange(src, low, high, dst);
-                                                cv.imshow('canvas2', dst);
-                                                src.delete(); dst.delete(); low.delete(); high.delete();*/
-                                                computeFrame();
-                                                setTimeout(loop, 1000 / 30); // drawing at 30fps
-                                            }
-                                        })();
-
-                                    case 2:
-                                    case 'end':
-                                        return _context.stop();
-                                }
-                            }
-                        }, null, this);
+                    poseNet = ml5.poseNet(video, options, modelReady);
+                    // This sets up an event that fills the global variable "poses"
+                    // with an array every time new poses are detected
+                    poseNet.on('pose', function (results) {
+                        poses = results;
                     });
 
-                    return _context2.abrupt('return', new Promise(function (resolve) {
+                    return _context.abrupt('return', new Promise(function (resolve) {
                         video.onloadedmetadata = function () {
                             resolve(video);
                         };
                     }));
 
-                case 11:
+                case 12:
                 case 'end':
-                    return _context2.stop();
+                    return _context.stop();
             }
         }
     }, null, this);
@@ -7725,75 +7745,125 @@ function sleep(ms) {
     });
 }
 
-function inrange(r, g, b) {
-    var range = 2;
-    if (isSkin(r - range, g - range, b - range) || isSkin(r - range, g + range, b - range) || isSkin(r - range, g - range, b + range) || isSkin(r + range, g - range, b - range) || isSkin(r - range, g + range, b + range) || isSkin(r + range, g + range, b - range) || isSkin(r + range, g - range, b + range) || isSkin(r + range, g + range, b + range)) {
-        return true;
+/* POSE NET */
+
+function modelReady() {
+    console.log('model ready');
+    video.addEventListener('play', function _callee() {
+        var $this;
+        return regeneratorRuntime.async(function _callee$(_context2) {
+            while (1) {
+                switch (_context2.prev = _context2.next) {
+                    case 0:
+
+                        //console.log(model.predict(tf.browser.fromPixels(video)))
+                        $this = this; //cache
+
+                        (function loop() {
+                            if (!$this.paused && !$this.ended) {
+                                context1.drawImage($this, 0, 0, IMAGE_SIZE, IMAGE_SIZE);
+                                context1.rect(124, 0, 100, 100);
+                                context1.stroke();
+                                //context1.translate(IMAGE_SIZE, 0);
+                                //context1.scale(-1, 1);
+                                processImg();
+                                computeFrame();
+                                drawKeypoints();
+                                drawSkeleton();
+                                setTimeout(loop, 1000 / 30); // drawing at 30fps
+                            }
+                        })();
+
+                    case 2:
+                    case 'end':
+                        return _context2.stop();
+                }
+            }
+        }, null, this);
+    });
+}
+
+function processImg() {
+    context3.clearRect(0, 0, 100, 100);
+    context3.drawImage(canvas2, 124, 0, 100, 100, 0, 0, 100, 100);
+    var src = cv.imread(canvas3);
+    cv.cvtColor(src, src, cv.COLOR_BGR2HSV);
+    var dst = new cv.Mat();
+    var low = new cv.Mat(src.rows, src.cols, src.type(), [parseFloat(lhSlider.value), parseFloat(lsSlider.value), parseFloat(lvSlider.value), 0]);
+    var high = new cv.Mat(src.rows, src.cols, src.type(), [parseFloat(hhSlider.value), parseFloat(hsSlider.value), parseFloat(hvSlider.value), 255]);
+    cv.inRange(src, low, high, dst);
+    cv.imshow(canvas3, dst);
+    src.delete();dst.delete();low.delete();high.delete();
+}
+
+function drawKeypoints() {
+    // Loop through all the poses detected
+    for (var i = 0; i < poses.length; i++) {
+        // For each pose detected, loop through all the keypoints
+        var pose = poses[i].pose;
+        for (var j = 0; j < pose.keypoints.length; j++) {
+            // A keypoint is an object describing a body part (like rightArm or leftShoulder)
+            var keypoint = pose.keypoints[j];
+            // Only draw an ellipse is the pose probability is bigger than 0.2
+            if (keypoint.score > 0.2) {
+                context2.beginPath();
+                context2.arc(keypoint.position.x, keypoint.position.y, 3, 0, 2 * Math.PI);
+                context2.fillStyle = '#7f584d';
+                context2.fill();
+            }
+        }
     }
 }
 
+// A function to draw the skeletons
+function drawSkeleton() {
+    // Loop through all the skeletons detected
+    for (var i = 0; i < poses.length; i++) {
+        var skeleton = poses[i].skeleton;
+        // For every skeleton, loop through all body connections
+        for (var j = 0; j < skeleton.length; j++) {
+            var partA = skeleton[j][0];
+            var partB = skeleton[j][1];
+            context2.beginPath(); // Start a new path
+            context2.moveTo(partA.position.x, partA.position.y);
+            context2.lineTo(partB.position.x, partB.position.y);
+            context2.strokeStyle = '#7f584d';
+            context2.lineWidth = 3;
+            context2.stroke();
+        }
+    }
+}
+
+/* SKIN TONE RECOGNITION */
 function computeFrame() {
+    var rrange = parseFloat(redSlider.value);
+    var grange = parseFloat(greenSlider.value);
+    var brange = parseFloat(blueSlider.value);
     var frame = context1.getImageData(0, 0, IMAGE_SIZE, IMAGE_SIZE);
     var l = frame.data.length / 4;
     for (var i = 0; i < l; i++) {
         var r = frame.data[i * 4 + 0];
         var g = frame.data[i * 4 + 1];
         var b = frame.data[i * 4 + 2];
-        if (!isSkin(r, g, b) && !inrange(r, g, b)) {
+        if (!isSkin(r + rrange, g + grange, b + brange)) {
             frame.data[i * 4 + 3] = 0;
-        } else {
-            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
-            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
-            frame.data[(i + 1) * 4 + 3] = frame.data[(i - 1) * 4 + 3] = 255;
-            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
-            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
-            frame.data[(i + 2) * 4 + 3] = frame.data[(i - 2) * 4 + 3] = 255;
         }
     }
 
     context2.putImageData(frame, 0, 0);
     var src = cv.imread(canvas2);
     var dst = new cv.Mat();
+    cv.medianBlur(src, dst, 3);
     var M = cv.Mat.ones(4, 4, cv.CV_8U);
     var anchor = new cv.Point(-1, -1);
-    cv.morphologyEx(src, dst, cv.MORPH_OPEN, M, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
-    //let blurred = new cv.Mat();
-    //cv.medianBlur(src, blurred, 5)
-    cv.imshow(canvas3, dst);
+    cv.morphologyEx(dst, dst, cv.MORPH_OPEN, M, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+
+    cv.imshow(canvas2, dst);
     src.delete();
     dst.delete();
     M.delete();
-
-    //blurred.delete();
     return;
 }
-
-var IMAGE_SIZE = 224;
-var Peer = require('simple-peer');
-var socket = io();
-var client = {};
-var gstream = null;
-/*navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-.then(stream => {
-    gstream = stream;
-    video.srcObject = stream;
-    video.width = IMAGE_SIZE;
-    video.height = IMAGE_SIZE;
-});*/
-
-//import {KNNImageClassifier} from 'deeplearn-knn-image-classifier';
-//import * as dl from 'deeplearn';
-
-
-//import { constant } from '@tensorflow/tfjs-layers/dist/exports_initializers';
-
-
-var TOPK = 10;
-
-var predictionThreshold = 0.85;
-
-var words = ['hello', 'send', 'other'];
-var name = null;
 
 var Main = function () {
     function Main() {
@@ -7801,15 +7871,17 @@ var Main = function () {
 
         _classCallCheck(this, Main);
 
-        this.meassage = [];
         this.wcs = document.getElementsByClassName("wcs");
         this.ddMode = document.getElementById("dd-mode");
         this.normalMode = document.getElementById("normal-mode");
-        this.mode = null;
         this.trainingListDiv = document.getElementById("training-list");
-
         this.predResults = document.getElementById("subs");
+        this.trainingListDiv = document.getElementById("training-list");
+        this.exampleListDiv = document.getElementById("example-list");
+        this.addWordForm = document.getElementById("add-word");
+        this.resultArea = document.getElementById("pred-result");
 
+        this.mode = null;
         this.infoTexts = [];
         this.training = -1; // -1 when no class is being trained
         this.videoPlaying = false;
@@ -7825,17 +7897,6 @@ var Main = function () {
         this.fps = 1; //framerate - number of prediction per second
         this.fpsInterval = 1000 / this.fps;
         this.elapsed = 0;
-
-        this.trainingListDiv = document.getElementById("training-list");
-        this.exampleListDiv = document.getElementById("example-list");
-
-        //knn = null
-        //featureExtractor = null
-
-
-        // Get video element that will contain the webcam image
-
-        this.addWordForm = document.getElementById("add-word");
 
         // add word to training example set
         this.addWordForm.addEventListener('submit', function (e) {
@@ -7871,6 +7932,7 @@ var Main = function () {
         value: function welcomeScreen() {
             var _this2 = this;
 
+            messageBox.style.display = "none";
             this.trainingListDiv.style.display = "none";
             video.style.display = "none";
             this.ddMode.addEventListener("click", function () {
@@ -7942,22 +8004,6 @@ var Main = function () {
                 _this3.addWordForm.innerHTML = '';
                 _this3.loadKNN();
                 _this3.createVideoCallButton();
-                /*
-                      this.textLine.innerText = "Step 2: Train"
-                      let subtext = document.createElement('span')
-                subtext.innerHTML = "<br/>Time to associate signs with the words"
-                subtext.classList.add('subtext')
-                this.textLine.appendChild(subtext)
-                */
-                /*const callButton = document.createElement('button')//start video calling
-                callButton.innerText = "Video Call"
-                this.trainingListDiv.appendChild(callButton)
-                callButton.addEventListener('click', () => {
-                    this.trainingListDiv.style.display = "none"
-                    const trainStreamDiv = document.getElementById('train-stream')
-                    trainStreamDiv.style.display = "none"
-                    videoCall();
-                })*/
             });
         }
     }, {
@@ -7967,15 +8013,22 @@ var Main = function () {
                 while (1) {
                     switch (_context3.prev = _context3.next) {
                         case 0:
+                            _context3.next = 2;
+                            return regeneratorRuntime.awrap(tf.loadLayersModel('http://localhost:3000/tfjsmodel/model.json'));
+
+                        case 2:
+                            model = _context3.sent;
 
                             knn = knnClassifier.create();
-                            _context3.next = 3;
+                            _context3.next = 6;
                             return regeneratorRuntime.awrap(mobilenet.load());
 
-                        case 3:
+                        case 6:
                             featureExtractor = _context3.sent;
 
-                        case 4:
+                            console.log('loaded');
+
+                        case 8:
                         case 'end':
                             return _context3.stop();
                     }
@@ -8034,13 +8087,13 @@ var Main = function () {
                                     j = 0;
 
                                 case 1:
-                                    if (!(j < 20)) {
+                                    if (!(j < 50)) {
                                         _context4.next = 13;
                                         break;
                                     }
 
                                     _context4.next = 4;
-                                    return regeneratorRuntime.awrap(_this4.sleep(500));
+                                    return regeneratorRuntime.awrap(_this4.sleep(100));
 
                                 case 4:
                                     _this4.training = i;
@@ -8210,11 +8263,12 @@ var Main = function () {
         value: function predict() {
             var _this7 = this;
 
-            var exampleCount, image, logits;
+            var tensor, resized, batched, result, exampleCount, image, logits;
             return regeneratorRuntime.async(function predict$(_context5) {
                 while (1) {
                     switch (_context5.prev = _context5.next) {
                         case 0:
+
                             this.now = Date.now();
 
                             this.elapsed = this.now - this.then;
@@ -8222,6 +8276,12 @@ var Main = function () {
                             if (this.elapsed > this.fpsInterval) {
                                 this.then = this.now - this.elapsed % this.fpsInterval;
                                 if (this.videoPlaying) {
+                                    tensor = tf.browser.fromPixels(canvas3);
+                                    resized = tf.image.resizeBilinear(tensor, [64, 64]).toFloat();
+                                    batched = resized.expandDims(0);
+                                    result = model.predict(batched).dataSync();
+
+                                    console.log(result);
                                     exampleCount = knn.getClassExampleCount();
                                     image = tf.browser.fromPixels(canvas2);
                                     logits = featureExtractor.infer(image);
@@ -8229,41 +8289,20 @@ var Main = function () {
 
                                     knn.predictClass(logits, 10).then(function (res) {
                                         if (res.confidences[res.classIndex] > predictionThreshold && res.classIndex != _this7.previousPrediction && res.classIndex != words.length - 1) {
-                                            console.log(words[res.classIndex]);
-                                            _this7.previousPrediction = res.classIndex;
 
-                                            //console.log(words[res.classIndex])
-                                            /*if(res == 'send') {
-                                              socket.emit('chat', name + this.message);
-                                              this.meassage = [];
+                                            if (res.classIndex == 1) {
+                                                socket.emit('chat', _this7.resultArea.innerHTML);
+                                                _this7.resultArea.innerHTML = '';
+                                            } else {
+                                                _this7.resultArea.innerHTML = _this7.resultArea.innerHTML + " " + words[res.classIndex];
                                             }
-                                            else  {   
-                                              this.message = this.message + ' ' + words[res.classIndex];
-                                            }*/
+                                            _this7.previousPrediction = res.classIndex;
                                         }
                                     }).then(logits.dispose(), image.dispose());
 
                                     /*} else {
                                       image.dispose()
                                     }*/
-                                    /*.then((res) => */ /*{
-                                                        for(let i=0;i<words.length;i++){
-                                                        // if matches & is above threshold & isnt same as prev prediction
-                                                        // and is not the last class which is a catch all class
-                                                        if(res.classIndex == i && res.confidences[i] > predictionThreshold && res.classIndex != this.previousPrediction){
-                                                        console.log(words[i])
-                                                        if(words[i] == 'send')  {
-                                                                     socket.emit('chat', name + this.meassage)
-                                                        this.message = []
-                                                        }
-                                                        if(words[i] != 'other') {
-                                                        this.message = this.meassage + ' ' + words[i];
-                                                        }
-                                                                 // set previous prediction so it doesnt get called again
-                                                        this.previousPrediction = res.classIndex;
-                                                        }
-                                                        }
-                                                        }).then(() => logits.dispose())*/
                                 }
                             }
                             this.pred = requestAnimationFrame(this.predict.bind(this));
@@ -8345,6 +8384,7 @@ function videoCall() {
                         return peer;
                     };
 
+                    messageBox.style.display = "block";
                     socket.emit('NewClient');
                     //used to initialize a peer
 
@@ -8361,7 +8401,7 @@ function videoCall() {
                     socket.on('CreatePeer', MakePeer);
                     socket.on('Disconnect', RemovePeer);
 
-                case 13:
+                case 14:
                 case 'end':
                     return _context6.stop();
             }
@@ -8389,8 +8429,9 @@ function speechrecognition() {
 }
 
 socket.on('chat', function (data) {
-    var messageBox = document.getElementById("message");
-    messageBox.innerHTML = data;
+    data = name + data;
+    messageBox.innerHTML = messageBox.innerHTML + data + '&#13;&#10;';
+    messageBox.scrollTop = messageBox.scrollHeight;
 });
 
 var main = null;
