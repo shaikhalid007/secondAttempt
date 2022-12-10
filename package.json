@@ -29,7 +29,7 @@
   "author": "error(404)",
   "dependencies": {
     "browserify": "^16.2.3",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "gammacv": "^0.3.6",
     "simple-peer": "^9.3.0",
     "skintone": "^1.0.0",
